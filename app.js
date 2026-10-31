@@ -748,7 +748,9 @@ document.addEventListener("submit", async (event) => {
   ui.busy = true;
   const button = event.submitter;
   if (button) button.disabled = true;
-  try { await submitForm(form, button?.value || 'profile'); }
+  // FormData is the fallback for browsers/webviews that omit submitter.
+  const intent = button?.value || new FormData(form).get('intent') || 'profile';
+  try { await submitForm(form, intent); }
   finally { ui.busy = false; if (button) button.disabled = false; }
 });
 

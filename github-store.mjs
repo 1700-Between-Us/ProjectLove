@@ -1,6 +1,12 @@
 const ROOT = 'couple-data';
 const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles'];
 const ROLES = ['me', 'partner'];
+function timeoutSignal(milliseconds) {
+  if (typeof AbortSignal?.timeout === 'function') return AbortSignal.timeout(milliseconds);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), milliseconds);
+  return controller.signal;
+}
 const encodePath = (path) => path.split('/').map(encodeURIComponent).join('/');
 
 function encodeJson(value) {
@@ -43,7 +49,7 @@ export class GithubStore {
     let response;
     try {
       response = await this.#fetch(`https://api.github.com${path}`, {
-        ...options, cache: 'no-store', signal: AbortSignal.timeout(20000),
+        ...options, cache: 'no-store', signal: timeoutSignal(20000),
         headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${this.#token}`, 'X-GitHub-Api-Version': '2022-11-28', ...(options.body ? { 'Content-Type': 'application/json' } : {}) }
       });
     } catch (error) {
