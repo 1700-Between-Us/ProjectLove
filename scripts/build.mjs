@@ -1,0 +1,13 @@
+import { cp, lstat, mkdir, rm } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { relative, resolve } from 'node:path';
+const root = fileURLToPath(new URL('../', import.meta.url));
+const files = ['index.html', 'app.js', 'styles.css', 'date-utils.mjs', 'github-store.mjs', 'sw.js', 'couple-mark.svg', 'manifest.webmanifest', 'icons'];
+const output = resolve(root, 'dist');
+if (relative(root, output) !== 'dist') throw new Error('构建目录必须是项目下的 dist。');
+const existing = await lstat(output).catch((error) => { if (error.code !== 'ENOENT') throw error; });
+if (existing?.isSymbolicLink()) throw new Error('dist 不能是符号链接，请选择普通构建目录。');
+await rm(output, { recursive: true, force: true });
+await mkdir(output);
+for (const file of files) await cp(resolve(root, file), resolve(output, file), { recursive: true });
+console.log('静态网站已生成到 dist/，无需安装依赖。');
