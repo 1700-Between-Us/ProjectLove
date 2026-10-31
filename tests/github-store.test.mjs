@@ -20,6 +20,16 @@ function scriptedFetch(handler) {
   return { calls, fetcher };
 }
 
+test('binds a native-style fetch receiver before making the first repository request', async () => {
+  let receiver;
+  function nativeStyleFetch(url) {
+    receiver = this;
+    return reply({ private: true, default_branch: 'main', permissions: { push: true } });
+  }
+  await new GithubStore(config, nativeStyleFetch).validate();
+  assert.equal(receiver, globalThis);
+});
+
 test('unchanged trees reuse blob content while still checking the latest tree', async () => {
   const mood = { role: 'me', key: 'miss', note: '今天也想你' };
   const entry = treeEntry('moods', 'me', 'mood-sha-1');

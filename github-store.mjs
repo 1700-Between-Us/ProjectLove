@@ -40,7 +40,9 @@ export class GithubStore {
     if (!/^[\w.-]+$/.test(owner) || !/^[\w.-]+$/.test(repo) || !token) throw new Error('请填写有效的仓库拥有者、仓库名称和 Token。');
     this.owner = owner; this.repo = repo; this.branch = branch;
     this.#token = token;
-    this.#fetch = fetcher;
+    // Keep the browser's native fetch receiver. Some Chromium/PWA contexts
+    // throw "Illegal invocation" when an unbound fetch is called as a class field.
+    this.#fetch = typeof fetcher?.bind === 'function' ? fetcher.bind(globalThis) : fetcher;
     this.base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   }
 
@@ -53,7 +55,12 @@ export class GithubStore {
         headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${this.#token}`, 'X-GitHub-Api-Version': '2022-11-28', ...(options.body ? { 'Content-Type': 'application/json' } : {}) }
       });
     } catch (error) {
-      throw new Error(error.name === 'TimeoutError' ? 'GitHub 连接超时，请检查网络后重试。' : '无法连接 GitHub，内容尚未保存，请检查网络。');
+      const message = error?.name === 'TimeoutError' || error?.name === 'AbortError'
+        ? 'GitHub 连接超时，请检查网络后重试。'
+        : '无法连接 GitHub，内容尚未保存，请检查网络。';
+      const wrapped = new Error(message, { cause: error });
+      wrapped.code = error?.name || 'FETCH_FAILED';
+      throw wrapped;
     }
     if (!response.ok) {
       const retry = response.headers.get('retry-after');
