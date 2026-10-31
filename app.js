@@ -400,7 +400,7 @@ function showSettings() {
     <div class="form-actions"><span class="field-hint">${remote ? '仅更新所选档案的资料' : '体验资料只保存在此设备'}</span><button class="button button-light" type="submit" name="intent" value="profile">保存资料与视角</button></div>
     <div class="settings-section sync-section"><div class="settings-section-title"><strong>GitHub 私有仓库</strong><span>${escapeHtml(activeRepo)}</span></div><div class="settings-pair"><label class="field"><span>仓库拥有者</span><input name="owner" autocomplete="off" value="${escapeHtml(remote?.owner || repo.owner || "")}" placeholder="GitHub 用户名" /></label><label class="field"><span>仓库名称</span><input name="repo" autocomplete="off" value="${escapeHtml(remote?.repo || repo.repo || "")}" placeholder="私有数据仓库" /></label></div><label class="field"><span>Fine-grained Token <em>每台设备单独授权</em></span><input name="token" type="password" autocomplete="new-password" placeholder="${remote ? "已连接；留空可保存个人设置" : "粘贴只授权此私有仓库的 Token"}" /></label><label class="field"><span>分支</span><input name="branch" value="${escapeHtml(remote?.branch || repo.branch || "main")}" placeholder="main" /></label><p class="security-note">Token 只保存在当前页面内存中，刷新后需重新输入。请只授权 Contents 读取与写入；仓库成员都可以访问全部数据，已删除内容仍会保留在 GitHub 历史中。</p></div>
     <p class="field-hint">建议数据仓库放在共同的 Organization 下，双方作为组织成员各自申请限权 Token；仅作为个人仓库的外部协作者可能无法使用这类 Token。重新连接需再次输入令牌。</p>
-    <div class="form-actions settings-actions">${remote ? `<button class="text-button danger-link" type="button" data-action="disconnect">断开并清除此页数据</button>` : `<button class="text-button muted" type="button" data-action="reset-demo">恢复体验数据</button>`}<button class="button button-dark" type="submit" data-action="connect" name="intent" value="connect">${remote ? "重新连接仓库" : "连接私有仓库"}</button></div><p class="field-hint">连接时只补齐仓库中缺失的档案，已有资料将保留。双人授权配置见 README。</p></form>`, true);
+    <div class="form-actions settings-actions">${remote ? `<button class="text-button danger-link" type="button" data-action="disconnect">断开并清除此页数据</button>` : `<button class="text-button muted" type="button" data-action="reset-demo">恢复体验数据</button>`}<button class="button button-dark" type="button" data-action="connect">${remote ? "重新连接仓库" : "连接私有仓库"}</button></div><p class="field-hint">连接时只补齐仓库中缺失的档案，已有资料将保留。双人授权配置见 README。</p></form>`, true);
 }
 
 function toastMessage(message, error = false) {
@@ -545,6 +545,10 @@ async function handleAction(button) {
   if (action === "connect") {
     const form = button.closest("form[data-form=\"settings\"]");
     if (!form) throw new Error("设置表单没有正确加载，请刷新页面后重试。");
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     await submitForm(form, "connect");
     return;
   }
@@ -698,6 +702,7 @@ async function submitForm(formElement, intent = 'profile') {
       }
     }
   } catch (error) {
+    if (kind === "settings") console.error("[between-us] connection failed", error);
     toastMessage(`${kind === "settings" ? "连接或保存失败" : "保存失败"}：${error.message}`, true);
   }
 }
