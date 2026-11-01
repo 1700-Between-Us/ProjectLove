@@ -2,7 +2,7 @@ import { cp, lstat, mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { relative, resolve } from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const files = ['index.html', 'app.js', 'styles.css', 'date-utils.mjs', 'github-store.mjs', 'sw.js', 'couple-mark.svg', 'manifest.webmanifest', 'icons'];
+const files = ['index.html', 'app.js', 'styles.css', 'date-utils.mjs', 'github-store.mjs', 'v2-utils.mjs', 'image-utils.mjs', 'city-map.mjs', 'sw.js', 'couple-mark.svg', 'manifest.webmanifest', 'icons', 'vendor/leaflet'];
 const output = resolve(root, 'dist');
 if (relative(root, output) !== 'dist') throw new Error('构建目录必须是项目下的 dist。');
 const existing = await lstat(output).catch((error) => { if (error.code !== 'ENOENT') throw error; });

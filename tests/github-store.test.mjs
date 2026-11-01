@@ -159,7 +159,7 @@ test('validation discovers a non-main default branch', async () => {
 
 test('an initialized repository with no app files produces an empty state', async () => {
   const store = new GithubStore(config, async () => reply({ tree: [{ type: 'blob', path: 'README.md', sha: 'readme' }], truncated: false }));
-  assert.deepEqual(await store.load(), { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {} });
+  assert.deepEqual(await store.load(), { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {}, places: [], treeholes: [], photos: [] });
 });
 
 test('empty repository, malformed tree and truncated tree reject rather than return incomplete data', async (t) => {

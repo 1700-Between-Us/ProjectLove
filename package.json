@@ -1,9 +1,9 @@
 {
   "name": "project-love",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "双人日常 PWA demo，GitHub Pages + 私有仓库文本同步",
+  "description": "双人日常 PWA，GitHub Pages + 私有仓库同步、城市地图与轻量照片",
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "test": "node --test tests/*.test.mjs",

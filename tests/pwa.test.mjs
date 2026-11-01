@@ -10,6 +10,8 @@ import vm from 'node:vm';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const publicFiles = [
   'app.js', 'couple-mark.svg', 'date-utils.mjs', 'github-store.mjs',
+  'v2-utils.mjs', 'image-utils.mjs', 'city-map.mjs',
+  'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/leaflet/LICENSE',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'index.html', 'manifest.webmanifest', 'styles.css', 'sw.js'
 ];
@@ -103,7 +105,7 @@ test('HTML and native module asset references resolve to included public files',
   assert.ok(references.includes('app.js'));
   assert.ok(references.includes('icons/icon-180.png'));
   for (const reference of references) assert.ok(publicFiles.includes(reference), reference);
-  for (const file of ['app.js', 'github-store.mjs', 'date-utils.mjs']) {
+  for (const file of ['app.js', 'github-store.mjs', 'date-utils.mjs', 'v2-utils.mjs', 'image-utils.mjs', 'city-map.mjs']) {
     const source = await readFile(join(root, file), 'utf8');
     for (const match of source.matchAll(/(?:from\s*|import\s*)['"](\.\/[^'"]+)['"]/g)) {
       assert.ok(publicFiles.includes(match[1].slice(2)), `${file}: ${match[1]}`);
@@ -166,6 +168,7 @@ test('the service worker never intercepts GitHub/weather APIs, private paths, wr
   for (const [url, method] of [
     ['https://api.github.com/repos/owner/private/contents/couple-data/whispers', 'GET'],
     ['https://api.open-meteo.com/v1/forecast?latitude=30', 'GET'],
+    ['https://tile.openstreetmap.org/4/12/6.png', 'GET'],
     ['https://geocoding-api.open-meteo.com/v1/search?name=Chengdu', 'GET'],
     ['./couple-data/private.json', 'GET'],
     ['./.env', 'GET'],

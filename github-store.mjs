@@ -1,6 +1,12 @@
+import { PHOTO_MAX_BYTES, PHOTO_TYPES, photoPath, validCoordinates } from './v2-utils.mjs';
+import { parseDay } from './date-utils.mjs';
+
 const ROOT = 'couple-data';
-const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles'];
+const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles', 'places', 'treeholes', 'photos'];
 const ROLES = ['me', 'partner'];
+const cloneRecord = value => JSON.parse(JSON.stringify(value));
+const validDay = value => { try { parseDay(value); return true; } catch { return false; } };
+const validTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
 function timeoutController(milliseconds) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), milliseconds);
@@ -21,13 +27,16 @@ function decodeJson(content) {
 
 function validateRecord(folder, value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (folder === 'profiles') return ROLES.includes(value.role) && typeof value.name === 'string' && typeof value.city === 'string';
-  if (folder === 'moods') return ROLES.includes(value.role) && typeof value.key === 'string';
-  if (typeof value.id !== 'string' || !value.id || value.id.includes('/')) return false;
+  if (folder === 'profiles') return ROLES.includes(value.role) && typeof value.name === 'string' && typeof value.city === 'string' && (!value.location || validCoordinates(value.location));
+  if (folder === 'moods') return ROLES.includes(value.role) && typeof value.key === 'string' && (!value.history || (Array.isArray(value.history) && value.history.every(entry => entry && typeof entry.key === 'string' && typeof entry.note === 'string' && validTime(entry.setAt))));
+  if (typeof value.id !== 'string' || !/^[\w-]+$/.test(value.id)) return false;
   if (folder === 'whispers') return ROLES.includes(value.sender) && ROLES.includes(value.recipient) && typeof value.content === 'string' && typeof value.createdAt === 'string';
   if (folder === 'habits') return ROLES.includes(value.owner) && typeof value.name === 'string';
-  if (folder === 'anniversaries') return typeof value.title === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date);
-  return ROLES.includes(value.owner) && typeof value.habitId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date);
+  if (folder === 'anniversaries') return typeof value.title === 'string' && validDay(value.date);
+  if (folder === 'places') return typeof value.name === 'string' && validCoordinates(value) && validDay(value.visitedAt) && (!value.note || typeof value.note === 'string');
+  if (folder === 'treeholes') return ROLES.includes(value.owner) && ROLES.includes(value.recipient) && value.owner !== value.recipient && typeof value.content === 'string' && validTime(value.createdAt) && ['pending', 'willing', 'needs-time', 'replied'].includes(value.status) && (!value.readAt || validTime(value.readAt)) && (!value.reply || typeof value.reply === 'string');
+  if (folder === 'photos') return ROLES.includes(value.owner) && typeof value.caption === 'string' && validTime(value.createdAt) && PHOTO_TYPES.has(value.mime) && value.imagePath === photoPath(value.id, value.mime) && Number.isInteger(value.size) && value.size > 0 && value.size <= PHOTO_MAX_BYTES && Number.isInteger(value.width) && value.width > 0 && value.width <= 1600 && Number.isInteger(value.height) && value.height > 0 && value.height <= 1600;
+  return ROLES.includes(value.owner) && typeof value.habitId === 'string' && validDay(value.date);
 }
 
 export class GithubStore {
@@ -106,7 +115,7 @@ export class GithubStore {
     if (!Array.isArray(tree?.tree)) throw new Error('GitHub 目录响应不完整，已保留当前数据。');
     if (tree.truncated) throw new Error('仓库过大，目录读取不完整，已保留当前数据。');
     const paths = tree.tree.filter((item) => item.type === 'blob' && new RegExp(`^${ROOT}/(${FOLDERS.join('|')})/[^/]+\\.json$`).test(item.path));
-    const loaded = { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {} };
+    const loaded = { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {}, places: [], treeholes: [], photos: [] };
     let index = 0;
     const records = new Array(paths.length);
     await Promise.all(Array.from({ length: Math.min(4, paths.length) }, async () => {
@@ -121,7 +130,9 @@ export class GithubStore {
         }
         const folder = item.path.split('/')[1];
         if (!validateRecord(folder, raw)) throw new Error(`数据格式不正确：${item.path}`);
-        records[slot] = { ...raw, _sha: item.sha, _path: item.path };
+        const id = folder === 'profiles' || folder === 'moods' ? raw.role : raw.id;
+        if (item.path !== `${ROOT}/${folder}/${id}.json`) throw new Error(`数据编号与文件名不一致：${item.path}`);
+        records[slot] = { ...cloneRecord(raw), _sha: item.sha, _path: item.path };
       }
     }));
     records.forEach((record, slot) => {
@@ -136,16 +147,52 @@ export class GithubStore {
     if (!FOLDERS.includes(folder) || !validateRecord(folder, record)) throw new Error('内容格式不正确，尚未保存。');
     const id = folder === 'profiles' || folder === 'moods' ? record.role : record.id;
     const path = `${ROOT}/${folder}/${id}.json`;
-    const clean = { ...record }; delete clean._sha; delete clean._path;
+    const clean = cloneRecord(record); delete clean._sha; delete clean._path;
     const body = { message: `Update ${folder} via Between Us`, content: encodeJson(clean), branch: this.branch };
     if (record._sha) body.sha = record._sha;
     const result = await this.request(`${this.base}/contents/${encodePath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
-    this.#cache.set(result.content.sha, clean);
+    this.#cache.set(result.content.sha, cloneRecord(clean));
     return { ...clean, _sha: result.content.sha, _path: path };
   }
 
   async remove(record) {
     if (!record._sha || !new RegExp(`^${ROOT}/(${FOLDERS.join('|')})/[^/]+\\.json$`).test(record._path)) throw new Error('请先同步最新数据再删除。');
     await this.request(`${this.base}/contents/${encodePath(record._path)}`, { method: 'DELETE', body: JSON.stringify({ message: 'Delete record via Between Us', branch: this.branch, sha: record._sha }) });
+  }
+
+  async savePhoto(record, base64) {
+    if (!validateRecord('photos', record)) throw new Error('图片资料格式不正确。');
+    const size = Math.floor(base64.length * 3 / 4) - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0);
+    if (size !== record.size || size < 1 || size > PHOTO_MAX_BYTES || base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new Error('图片大小不匹配，或压缩后的图片不小于 1 MB。');
+    const body = { message: 'Upload photo via Between Us', content: base64, branch: this.branch };
+    const result = await this.request(`${this.base}/contents/${encodePath(record.imagePath)}`, { method: 'PUT', body: JSON.stringify(body) });
+    return { ...record, imageSha: result.content.sha };
+  }
+
+  async readPhoto(record) {
+    if (!validateRecord('photos', record)) throw new Error('图片资料格式不正确。');
+    const result = await this.request(`${this.base}/contents/${encodePath(record.imagePath)}?ref=${encodeURIComponent(this.branch)}`);
+    const base64 = String(result.content || '').replace(/\s/g, '');
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new Error('图片数据无法读取。');
+    if (base64.length > Math.ceil(PHOTO_MAX_BYTES / 3) * 4 || base64.length % 4 !== 0) throw new Error('图片大小超出限制。');
+    const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+    if (bytes.length !== record.size) throw new Error('图片大小与记录不一致，请重新同步。');
+    return bytes;
+  }
+
+  async removePhotoFile(record) {
+    if (!validateRecord('photos', record)) throw new Error('图片资料格式不正确。');
+    const file = record.imageSha ? { sha: record.imageSha } : await this.request(`${this.base}/contents/${encodePath(record.imagePath)}?ref=${encodeURIComponent(this.branch)}`);
+    await this.request(`${this.base}/contents/${encodePath(record.imagePath)}`, { method: 'DELETE', body: JSON.stringify({ message: 'Delete photo via Between Us', branch: this.branch, sha: file.sha }) });
+  }
+
+  async removePhoto(record) {
+    if (!validateRecord('photos', record)) throw new Error('图片资料格式不正确。');
+    // Delete the image first. If the second operation fails, metadata still
+    // advertises an unreadable photo, which the UI can retry removing.
+    try { await this.removePhotoFile(record); }
+    catch (error) { if (error.status !== 404) throw error; }
+    await this.remove(record);
+    return true;
   }
 }

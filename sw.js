@@ -1,5 +1,6 @@
-const CACHE_NAME = 'between-us-shell-v1.2';
-const SHELL = ['./', './index.html', './styles.css', './app.js', './github-store.mjs', './date-utils.mjs', './manifest.webmanifest', './couple-mark.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE_NAME = 'between-us-shell-v2.2';
+const SHELL = ['./', './index.html', './styles.css', './app.js', './github-store.mjs', './date-utils.mjs', './v2-utils.mjs', './image-utils.mjs', './city-map.mjs', './manifest.webmanifest', './couple-mark.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
+SHELL.push('./vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/LICENSE');
 const ALLOWED = new Set(SHELL.map((path) => new URL(path, self.location.href).href));
 
 self.addEventListener("install", (event) => {

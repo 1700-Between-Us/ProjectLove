@@ -3,11 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, extname } from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const assets = new Set(['index.html', 'app.js', 'styles.css', 'date-utils.mjs', 'github-store.mjs', 'sw.js', 'couple-mark.svg', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png']);
+const assets = new Set(['index.html', 'app.js', 'styles.css', 'date-utils.mjs', 'github-store.mjs', 'v2-utils.mjs', 'image-utils.mjs', 'city-map.mjs', 'sw.js', 'couple-mark.svg', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png']);
 // A development-only fixture exercises real iframe viewports without browser emulation.
 assets.add('tests/responsive.html');
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const port = Number(process.env.PORT || 4174);
+for (const file of ['leaflet.js', 'leaflet.css', 'LICENSE']) assets.add(`vendor/leaflet/${file}`);
 createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);

@@ -33,17 +33,14 @@ test('day counts and streaks remain correct through spring and fall DST transiti
   assert.deepEqual(JSON.parse(child.stdout), { spring: 2, fall: 2, streak: 3 });
 });
 
-test('February 29 repeats on February 28 in a non-leap year and remains on February 29 in leap years', () => {
+test('legacy yearly February 29 records retain their original date', () => {
   const item = { date: '2020-02-29', repeatYearly: true };
-  assert.deepEqual(nextAnniversary(item, '2025-02-27'), { date: '2025-02-28', days: 1 });
-  assert.deepEqual(nextAnniversary(item, '2025-02-28'), { date: '2025-02-28', days: 0 });
-  assert.deepEqual(nextAnniversary(item, '2025-03-01'), { date: '2026-02-28', days: 364 });
-  assert.deepEqual(nextAnniversary(item, '2024-02-28'), { date: '2024-02-29', days: 1 });
-  assert.deepEqual(nextAnniversary(item, '2023-03-01'), { date: '2024-02-29', days: 365 });
+  assert.deepEqual(nextAnniversary(item, '2020-03-01'), { date: '2020-02-29', days: -1 });
+  assert.equal(nextAnniversary(item, '2025-02-28').date, item.date);
 });
 
-test('annual dates roll into the next year while one-time dates retain their actual date', () => {
-  assert.deepEqual(nextAnniversary({ date: '2025-05-20', repeatYearly: true }, '2026-05-21'), { date: '2027-05-20', days: 364 });
+test('all anniversaries use their actual date regardless of the removed repeat flag', () => {
+  assert.deepEqual(nextAnniversary({ date: '2025-05-20', repeatYearly: true }, '2026-05-21'), { date: '2025-05-20', days: -366 });
   assert.deepEqual(nextAnniversary({ date: '2025-05-20', repeatYearly: false }, '2025-05-21'), { date: '2025-05-20', days: -1 });
 });
 

@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f5f6f2" />
     <meta name="description" content="一份属于两个人的日常。" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.github.com https://geocoding-api.open-meteo.com https://api.open-meteo.com; manifest-src 'self'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.github.com https://geocoding-api.open-meteo.com https://api.open-meteo.com; manifest-src 'self'; base-uri 'self'; form-action 'self'" />
     <link rel="icon" type="image/svg+xml" href="./couple-mark.svg" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="./styles.css" />
     <title>两地之间</title>
   </head>
@@ -18,6 +19,7 @@
       <div id="modal-content"></div>
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./vendor/leaflet/leaflet.js"></script>
     <script src="./app.js" type="module"></script>
   </body>
 </html>
