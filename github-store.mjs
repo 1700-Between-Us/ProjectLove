@@ -1,11 +1,10 @@
 const ROOT = 'couple-data';
 const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles'];
 const ROLES = ['me', 'partner'];
-function timeoutSignal(milliseconds) {
-  if (typeof AbortSignal?.timeout === 'function') return AbortSignal.timeout(milliseconds);
+function timeoutController(milliseconds) {
   const controller = new AbortController();
-  setTimeout(() => controller.abort(), milliseconds);
-  return controller.signal;
+  const timer = setTimeout(() => controller.abort(), milliseconds);
+  return { signal: controller.signal, cancel: () => clearTimeout(timer) };
 }
 const encodePath = (path) => path.split('/').map(encodeURIComponent).join('/');
 
@@ -49,18 +48,23 @@ export class GithubStore {
   async request(path, options = {}) {
     if (Date.now() < this.retryAt) throw new Error('GitHub 请求较频繁，稍后会自动重试。');
     let response;
+    const timeout = timeoutController(20000);
     try {
       response = await this.#fetch(`https://api.github.com${path}`, {
-        ...options, cache: 'no-store', signal: timeoutSignal(20000),
+        ...options, cache: 'no-store', signal: timeout.signal,
         headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${this.#token}`, 'X-GitHub-Api-Version': '2022-11-28', ...(options.body ? { 'Content-Type': 'application/json' } : {}) }
       });
     } catch (error) {
+      const detail = [error?.name, error?.message].filter(Boolean).join(': ') || 'unknown fetch error';
       const message = error?.name === 'TimeoutError' || error?.name === 'AbortError'
         ? 'GitHub 连接超时，请检查网络后重试。'
-        : '无法连接 GitHub，内容尚未保存，请检查网络。';
+        : `无法连接 GitHub，内容尚未保存（${detail}）。`;
       const wrapped = new Error(message, { cause: error });
       wrapped.code = error?.name || 'FETCH_FAILED';
+      wrapped.requestPath = path;
       throw wrapped;
+    } finally {
+      timeout.cancel();
     }
     if (!response.ok) {
       const retry = response.headers.get('retry-after');
