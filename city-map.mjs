@@ -29,15 +29,31 @@ export function mountCityMap(people, places = []) {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
   }).addTo(map);
   for (const point of markers) {
-    const label = document.createElement('span');
-    label.textContent = [point.name, point.visitedAt, point.note].filter(Boolean).join(' · ');
+    const label = document.createElement('div');
+    label.className = 'city-tooltip-content';
+    const copy = document.createElement('span');
+    copy.textContent = [point.name, point.visitedAt, point.note].filter(Boolean).join(' · ');
+    label.append(copy);
+    const albumLink = document.createElement('button');
+    albumLink.type = 'button';
+    albumLink.className = 'city-album-link';
+    albumLink.dataset.action = 'navigate-photos-group';
+    albumLink.dataset.group = point.albumGroup || point.name;
+    albumLink.textContent = '打开相册';
+    albumLink.title = `打开“${albumLink.dataset.group}”相册分组`;
+    albumLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      document.dispatchEvent(new CustomEvent('between-us:navigate-photos-group', { detail: { group: albumLink.dataset.group } }));
+    });
+    label.append(albumLink);
     L.marker([point.latitude, point.longitude], {
       title: point.name,
       icon: L.divIcon({ className: `city-marker ${point.kind}`, html: point.kind === 'person' ? '♥' : '●', iconSize: [30, 30], iconAnchor: [15, 15] })
-    }).bindTooltip(label, { direction: 'top' }).addTo(map);
+    }).bindTooltip(label, { direction: 'top', className: 'city-label-tooltip', interactive: true }).addTo(map);
   }
   if (people.length === 2 && people.every(validCoordinates)) {
-    L.polyline(people.map(point => [point.latitude, point.longitude]), { color: '#cf8572', weight: 2, dashArray: '6 8' }).addTo(map);
+    L.polyline(people.map(point => [point.latitude, point.longitude]), { color: '#5f9dd3', weight: 2, dashArray: '6 8' }).addTo(map);
   }
   if (view?.key === key) map.setView(view.center, view.zoom);
   else if (markers.length) map.fitBounds(markers.map(point => [point.latitude, point.longitude]), { padding: [45, 45], maxZoom: 9 });

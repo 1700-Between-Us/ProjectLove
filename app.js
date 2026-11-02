@@ -137,7 +137,7 @@ const savedRepository = () => {
   if (saved?.owner && saved?.repo) return { owner: saved.owner, repo: saved.repo, branch: saved.branch || 'main' };
   try { return JSON.parse(storageGet(REPO_KEY) || 'null'); } catch { return null; }
 };
-const ui = { view: "home", role: storageGet(ROLE_KEY) === "partner" ? "partner" : "me", weatherBusy: false, weatherError: "", syncLabel: "此设备体验数据", connectionStatus: '', installEvent: null, syncBusy: false, busy: false, draft: "" };
+const ui = { view: "home", role: storageGet(ROLE_KEY) === "partner" ? "partner" : "me", weatherBusy: false, weatherError: "", syncLabel: "此设备体验数据", connectionStatus: '', installEvent: null, syncBusy: false, busy: false, draft: "", photoGroup: "" };
 let data = readDemo();
 let remote = null;
 let weatherCache = null;
@@ -158,7 +158,7 @@ function weatherIdentity() {
   const role = counterpartRole(), target = profile(role);
   return JSON.stringify([connectionVersion, role, target.city, target.location?.latitude, target.location?.longitude]);
 }
-function mapPeople() { return ['me', 'partner'].map(role => ({ ...profile(role).location, name: `${roleName(role)} · ${profile(role).city || '未设置城市'}` })); }
+function mapPeople() { return ['me', 'partner'].map(role => ({ ...profile(role).location, name: `${roleName(role)} · ${profile(role).city || '未设置城市'}`, albumGroup: profile(role).city || '' })); }
 async function searchCities(city) {
   const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
   url.search = new URLSearchParams({ name: city, count: '8', language: 'zh', format: 'json' });
@@ -269,7 +269,6 @@ function renderShell() {
           <div class="top-actions">
             ${installButton}
             <button class="icon-button sync-button" data-action="refresh" title="立即同步" aria-label="立即同步">${icon("refresh")}</button>
-            <button class="role-button" data-action="switch-role" title="切换展示档案（双方信任使用，非身份验证）"><span class="role-stack">${avatar("me", "tiny")}${avatar("partner", "tiny")}</span><span>以 ${escapeHtml(roleName(ui.role))} 的视角</span><span class="down-caret">⌄</span></button>
             <button class="icon-button settings-button" data-action="settings" title="设置" aria-label="设置">${icon("settings")}</button>
           </div>
         </header>
@@ -320,6 +319,10 @@ function renderDashboard() {
   const myHabits = activeHabits.filter((h) => h.owner === ui.role);
   const recentWhispers = [...(data.whispers || [])].filter((m) => !m.deletedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
   const weather = ui.weatherBusy ? `<div class="weather-loading"><span class="loader"></span><span>正在看 ${escapeHtml(partnerProfile.city || "对方城市")} 的天气</span></div>` : ui.weatherError ? `<div class="weather-empty"><span>${icon("cloud", 23)}</span><p>${escapeHtml(ui.weatherError)}</p><button class="text-button" data-action="weather">重试</button></div>` : weatherCache ? `<div class="weather-now"><span class="weather-symbol">${weatherIcon(weatherCache.code)}</span><div><div class="temperature">${Math.round(weatherCache.temperature)}<span>°</span></div><div class="weather-desc">${escapeHtml(weatherText[weatherCache.code] || "天气未知")} · 体感 ${Math.round(weatherCache.apparent)}°</div></div><div class="weather-range"><span>今日</span><strong>${Math.round(weatherCache.max)}° <i>/</i> ${Math.round(weatherCache.min)}°</strong></div></div>` : `<div class="weather-empty"><span>${icon("cloud", 23)}</span><p>设置城市后查看天气</p><button class="text-button" data-action="settings">设置城市</button></div>`;
+  const anniversaryPanel = `<section class="panel anniversary-panel">
+        <div class="panel-head"><div class="section-title"><span class="section-mark mark-coral">${icon("calendar", 16)}</span><div><span class="panel-kicker">IMPORTANT DAYS</span><h2>我们的纪念日</h2></div></div><button class="icon-button small" data-action="add-anniversary" title="添加纪念日" aria-label="添加纪念日">${icon("plus", 18)}</button></div>
+        ${ann ? `<div class="anniversary-body"><div class="anniversary-date"><span class="date-month">${fmtDay(next.date, { month: "long" })}</span><strong>${Number(next.date.slice(-2))}</strong><span>${fmtDay(next.date, { weekday: "long" })}</span></div><div class="anniversary-info"><strong>${escapeHtml(ann.title)}</strong><span>${anniversaryText(next.days)}</span><div class="countdown-rail"><i style="--progress:${Math.max(7, Math.min(98, 100 - (Math.abs(next.days) / 365 * 100)))}%"></i></div><small>记于 ${fmtDay(ann.date)}</small></div></div><div class="anniversary-footer"><span>${(data.anniversaries || []).length} 个值得记住的日子</span><button class="text-button" data-action="manage-anniversaries">查看全部 ${icon("arrow", 14)}</button></div>` : `<div class="empty-inline"><span class="empty-symbol">✳</span><p>还没有纪念日，<br />把重要的日子留在这里。</p><button class="text-button" data-action="add-anniversary">添加第一个纪念日 ${icon("arrow", 14)}</button></div>`}
+      </section>`;
 
   return `
     <div class="view-heading">
@@ -344,10 +347,7 @@ function renderDashboard() {
     </section>
 
     <div class="dashboard-grid">
-      <section class="panel anniversary-panel">
-        <div class="panel-head"><div class="section-title"><span class="section-mark mark-coral">${icon("calendar", 16)}</span><div><span class="panel-kicker">IMPORTANT DAYS</span><h2>我们的纪念日</h2></div></div><button class="icon-button small" data-action="add-anniversary" title="添加纪念日" aria-label="添加纪念日">${icon("plus", 18)}</button></div>
-        ${ann ? `<div class="anniversary-body"><div class="anniversary-date"><span class="date-month">${fmtDay(next.date, { month: "long" })}</span><strong>${Number(next.date.slice(-2))}</strong><span>${fmtDay(next.date, { weekday: "long" })}</span></div><div class="anniversary-info"><strong>${escapeHtml(ann.title)}</strong><span>${anniversaryText(next.days)}</span><div class="countdown-rail"><i style="--progress:${Math.max(7, Math.min(98, 100 - (Math.abs(next.days) / 365 * 100)))}%"></i></div><small>记于 ${fmtDay(ann.date)}</small></div></div><div class="anniversary-footer"><span>${(data.anniversaries || []).length} 个值得记住的日子</span><button class="text-button" data-action="manage-anniversaries">查看全部 ${icon("arrow", 14)}</button></div>` : `<div class="empty-inline"><span class="empty-symbol">✳</span><p>还没有纪念日，<br />把重要的日子留在这里。</p><button class="text-button" data-action="add-anniversary">添加第一个纪念日 ${icon("arrow", 14)}</button></div>`}
-      </section>
+      ${renderTreeholeDashboard()}
 
       <section class="panel mood-panel">
         <div class="panel-head"><div class="section-title"><span class="section-mark mark-mint">◌</span><div><span class="panel-kicker">HOW WE FEEL</span><h2>此刻的心情</h2></div></div><button class="text-button muted" data-action="set-mood">更新我的状态 ${icon("arrow", 14)}</button></div>
@@ -370,11 +370,7 @@ function renderDashboard() {
         ${myHabits.length ? `<div class="habit-preview-list">${myHabits.slice(0, 3).map((h) => habitRow(h, true)).join("")}</div><div class="panel-footer"><span class="unread-caption">本周完成 ${myHabits.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span><button class="text-button" data-action="navigate" data-view="habits">查看习惯 ${icon("arrow", 14)}</button></div>` : `<div class="empty-inline small-empty"><span class="empty-symbol">✓</span><p>从一个小小的好习惯开始。</p><button class="text-button" data-action="add-habit">添加习惯 ${icon("arrow", 14)}</button></div>`}
       </section>
 
-      <section class="panel points-panel">
-        <div class="points-decoration" aria-hidden="true"><span class="coin coin-one">✳</span><span class="coin coin-two">♡</span><span class="coin coin-three">+1</span></div>
-        <div class="points-content"><span class="panel-kicker">KINDNESS BANK · V3</span><h2>奖励与积分</h2><p>给彼此的努力，留一个以后再开启的位置。</p><span class="coming-soon">第三版再见 <span>↗</span></span></div>
-        <span class="points-stub">—</span>
-      </section>
+      ${anniversaryPanel}
 
       <section class="panel weather-panel">
         <div class="panel-head"><div class="section-title"><span class="section-mark mark-yellow">${icon("cloud", 16)}</span><div><span class="panel-kicker">OUTSIDE THEIR WINDOW</span><h2>${escapeHtml(partnerProfile.city || "对方城市")} 的天气</h2></div></div><button class="icon-button small" data-action="weather" title="刷新天气" aria-label="刷新天气">${icon("refresh", 16)}</button></div>
@@ -427,14 +423,64 @@ function renderHabitsPage() {
 function treeholeStatus(item) {
   if (item.owner !== ui.role) return item.status === 'needs-time' ? '你已告诉 TA：还需要一些时间' : item.readAt ? '已读 · 谢谢你愿意听' : '等待你准备好';
   if (item.status === 'needs-time') return '你的小宝已经知道你需要哄啦，再给他一点时间好不好';
-  return item.readAt ? '对方已读' : '等待对方回应';
+  return item.readAt ? (treeholeMessages(item).length > 1 ? '你们正在继续聊' : '对方已读') : '等待对方回应';
+}
+
+// V2 records only had one `reply` field. Keep reading those records while
+// storing new turns as a small, ordered conversation on the same treehole.
+function treeholeMessages(item) {
+  if (Array.isArray(item.messages) && item.messages.length) return item.messages.filter(message => message && typeof message.content === 'string');
+  const messages = [{ id: `${item.id}-opening`, sender: item.owner, content: item.content, createdAt: item.createdAt }];
+  if (item.reply) messages.push({ id: `${item.id}-reply`, sender: item.recipient, content: item.reply, createdAt: item.respondedAt || item.createdAt });
+  return messages;
+}
+
+function treeholeConversation(item) {
+  const visible = item.owner === ui.role || item.readAt;
+  if (!visible) return `<p class="treehole-hidden">内容会在你准备好倾听时打开。</p>`;
+  const messages = treeholeMessages(item).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  const bubbles = messages.map(message => `<div class="treehole-bubble ${message.sender === ui.role ? 'mine' : 'theirs'}"><span>${escapeHtml(roleName(message.sender))}</span><p>${escapeHtml(message.content)}</p><time>${escapeHtml(fmtTime(message.createdAt))}</time></div>`).join('');
+  const composer = item.readAt ? `<form class="treehole-composer" data-form="treehole-reply" data-id="${escapeHtml(item.id)}"><label class="field"><span>继续聊下去</span><textarea name="reply" maxlength="500" rows="2" placeholder="写一句回应……" required></textarea></label><button class="button button-light" type="submit">送出回应</button></form>` : '';
+  return `<div class="treehole-thread" aria-label="${escapeHtml(roleName(item.owner))} 的树洞对话">${bubbles}</div>${composer}`;
+}
+
+function treeholeMessageCount(item) {
+  return treeholeMessages(item).length;
+}
+
+function renderTreeholeDashboard() {
+  const items = [...(data.treeholes || [])]
+    .filter(item => !item.deletedAt)
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  const latest = items[0];
+  const visible = latest && (latest.owner === ui.role || latest.readAt);
+  const preview = latest ? (visible ? latest.content : '内容会在你准备好倾听时打开。') : '';
+  return `<section class="panel treehole-dashboard-panel">
+    <div class="panel-head"><div class="section-title"><span class="section-mark mark-blue">${icon("heart", 16)}</span><div><span class="panel-kicker">A PLACE TO BE HEARD</span><h2>树洞</h2></div></div><button class="icon-button small" data-action="navigate" data-view="treeholes" title="打开树洞" aria-label="打开树洞">${icon("arrow", 16)}</button></div>
+    ${latest ? `<div class="treehole-dashboard-preview"><strong>${escapeHtml(roleName(latest.owner))} 的话题</strong><time>${escapeHtml(fmtTime(latest.updatedAt || latest.createdAt))}</time><p>${escapeHtml(preview)}</p><small>${escapeHtml(treeholeStatus(latest))} · ${treeholeMessageCount(latest)} 条对话</small></div>` : `<div class="empty-inline"><span class="empty-symbol">♡</span><p>这里还很安静，<br />写下第一段心事吧。</p></div>`}
+    <div class="panel-footer"><span class="unread-caption">${items.length ? `${items.length} 个对话话题` : '给彼此留一个被听见的地方'}</span><button class="text-button" data-action="navigate" data-view="treeholes">打开树洞 ${icon("arrow", 14)}</button></div>
+  </section>`;
+}
+
+function treeholeThreadModal(item) {
+  showModal(`<div class="form-stack">${modalHeader('我在认真听', 'A PLACE TO BE HEARD')}<p class="form-intro">这段心事已经打开，你们可以在同一个话题里来回说。</p>${treeholeConversation(item)}</div>`);
+}
+
+function navigateToPhotoGroup(group) {
+  const selected = String(group || '').trim();
+  if (!selected) return;
+  ui.view = 'photos';
+  ui.photoGroup = selected;
+  renderShell();
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  setTimeout(() => document.getElementById?.(`photo-group-${encodeURIComponent(selected)}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
 }
 
 function renderTreeholesPage() {
   const items = [...(data.treeholes || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return `<div class="view-heading compact-heading"><div><div class="eyebrow">A PLACE TO BE HEARD</div><h1>树洞</h1><p class="intro-copy">把想被理解的心事放在这里，给彼此一些空间。</p></div></div>
     <section class="panel feature-panel"><form class="form-stack inline-form" data-form="treehole"><label class="field"><span>我希望你知道……</span><textarea name="content" rows="4" maxlength="1000" placeholder="写下希望一起面对的情绪或问题" required></textarea></label><button class="button button-dark" type="submit">留一段心事</button></form>
-    <div class="feature-list">${items.length ? items.map(item => `<article class="feature-row"><div><strong>${escapeHtml(roleName(item.owner))} 的树洞</strong><time>${escapeHtml(fmtTime(item.createdAt))}</time></div><p>${item.owner === ui.role ? escapeHtml(item.content) : '内容会在你准备好倾听时打开。'}</p><small>${escapeHtml(treeholeStatus(item))}</small>${item.reply && item.owner === ui.role ? `<p class="treehole-reply">${escapeHtml(roleName(counterpartRole()))}：${escapeHtml(item.reply)}</p>` : ''}<div class="feature-actions">${item.owner !== ui.role ? `<button class="button button-light" data-action="open-treehole" data-id="${escapeHtml(item.id)}">愿意倾听时打开</button>` : `<button class="text-button danger-link" data-action="delete-treehole" data-id="${escapeHtml(item.id)}">删除</button>`}</div></article>`).join('') : `<div class="empty-page"><span class="empty-symbol">♡</span><h3>这里还很安静</h3><p>第一段心事，会有人认真听。</p></div>`}</div></section>`;
+    <div class="feature-list">${items.length ? items.map(item => `<article class="feature-row"><div><strong>${escapeHtml(roleName(item.owner))} 的树洞</strong><time>${escapeHtml(fmtTime(item.createdAt))}</time></div>${treeholeConversation(item)}<small>${escapeHtml(treeholeStatus(item))}</small><div class="feature-actions">${item.owner !== ui.role && !item.readAt ? `<button class="button button-light" data-action="open-treehole" data-id="${escapeHtml(item.id)}">愿意倾听时打开</button>` : ''}${item.owner === ui.role ? `<button class="text-button danger-link" data-action="delete-treehole" data-id="${escapeHtml(item.id)}">删除</button>` : ''}</div></article>`).join('') : `<div class="empty-page"><span class="empty-symbol">♡</span><h3>这里还很安静</h3><p>第一段心事，会有人认真听。</p></div>`}</div></section>`;
 }
 
 function renderMapPage() {
@@ -442,13 +488,22 @@ function renderMapPage() {
   const distance = distanceKm(people[0], people[1]);
   const places = [...(data.places || [])].sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
   return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE WORLD</div><h1>我们的地图</h1><p class="intro-copy">仅显示手动选择的城市中心，不读取实时位置。</p></div><button class="button button-dark" data-action="add-place">${icon('plus', 16)}去过的城市</button></div>
-    <section class="panel feature-panel"><div class="map-heading"><strong>${escapeHtml(profile('me').city || '未设置')} ↔ ${escapeHtml(profile('partner').city || '未设置')}</strong><span>${distance === null ? '请分别确认两人的城市位置' : `直线相距约 ${Math.round(distance).toLocaleString('zh-CN')} 公里`}</span></div><div id="city-map" class="city-map" role="img" aria-label="两个人的位置和共同去过的城市地图"></div><p class="field-hint">地图可拖动、滚轮或按钮缩放。地理信息与底图需要联网；© OpenStreetMap contributors。</p><div class="feature-actions"><button class="button button-light" data-action="set-city-location" data-role="${ui.role}">确认${escapeHtml(roleName(ui.role))}的城市</button>${!validCoordinates(profile(counterpartRole()).location) ? '<span class="field-hint">请让对方在自己的设备上确认城市</span>' : ''}</div></section>
-    <section class="panel feature-panel"><h2>一起去过的城市</h2><div class="feature-list">${places.length ? places.map(place => `<article class="feature-row"><div><strong>${escapeHtml(place.name)}</strong><time>${escapeHtml(fmtDay(place.visitedAt, { year: 'numeric', month: 'long', day: 'numeric' }))}</time></div><p>${escapeHtml(place.note || '一起走过的路')}</p><button class="text-button danger-link" data-action="delete-place" data-id="${escapeHtml(place.id)}">删除标点</button></article>`).join('') : '<p class="field-hint">还没有标点。添加城市后会显示在地图上。</p>'}</div></section>`;
+    <section class="panel feature-panel"><div class="map-heading"><strong>${escapeHtml(profile('me').city || '未设置')} ↔ ${escapeHtml(profile('partner').city || '未设置')}</strong><span>${distance === null ? '请分别确认两人的城市位置' : `直线相距约 ${Math.round(distance).toLocaleString('zh-CN')} 公里`}</span></div><div id="city-map" class="city-map" role="img" aria-label="两个人的位置和共同去过的城市地图"></div><p class="field-hint">地图可拖动、滚轮或按钮缩放。点击标点可查看横向标注；地理信息与底图需要联网；© OpenStreetMap contributors。</p><div class="feature-actions"><button class="button button-light" data-action="set-city-location" data-role="${ui.role}">确认${escapeHtml(roleName(ui.role))}的城市</button>${!validCoordinates(profile(counterpartRole()).location) ? '<span class="field-hint">请让对方在自己的设备上确认城市</span>' : ''}</div></section>
+    <section class="panel feature-panel"><h2>一起去过的城市</h2><div class="feature-list">${places.length ? places.map(place => `<article class="feature-row"><div><strong>${escapeHtml(place.name)}</strong><time>${escapeHtml(fmtDay(place.visitedAt, { year: 'numeric', month: 'long', day: 'numeric' }))}</time></div><p>${escapeHtml(place.note || '一起走过的路')}</p><div class="feature-actions"><button class="text-button" data-action="navigate-photos-group" data-group="${escapeHtml(place.name)}">打开“${escapeHtml(place.name)}”相册 ${icon('arrow', 14)}</button><button class="text-button danger-link" data-action="delete-place" data-id="${escapeHtml(place.id)}">删除标点</button></div></article>`).join('') : '<p class="field-hint">还没有标点。添加城市后会显示在地图上。</p>'}</div></section>`;
 }
 
 function renderPhotosPage() {
   const photos = [...(data.photos || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE GALLERY</div><h1>照片</h1><p class="intro-copy">留下一些轻轻的瞬间，保存在共享的私有仓库。</p></div></div><section class="panel feature-panel"><form class="form-stack inline-form" data-form="photo"><label class="field"><span>选择图片</span><input type="file" name="image" accept="image/webp,image/jpeg,image/png" required></label><label class="field"><span>照片说明（可选）</span><input name="caption" maxlength="120" placeholder="这一天，我们……"></label><p class="field-hint">推荐 WebP，最长边 1600 像素，压缩目标约 500 KB，单张小于 1 MB，最多 ${PHOTO_LIMIT} 张。私有仓库保存，提交历史中仍可找回。</p><button class="button button-dark" type="submit" ${photos.length >= PHOTO_LIMIT ? 'disabled' : ''}>上传照片</button></form><div class="photo-grid">${photos.length ? photos.map(photo => `<article class="photo-card"><div class="photo-frame" data-photo-id="${escapeHtml(photo.id)}">${remote ? '加载中…' : '<span>仅连接私有仓库后可读取图片</span>'}</div><div class="photo-caption"><span>${escapeHtml(photo.caption || fmtDay((photo.createdAt || '').slice(0, 10)))}</span><small>${escapeHtml(roleName(photo.owner))}</small></div><button class="text-button danger-link" data-action="delete-photo" data-id="${escapeHtml(photo.id)}">删除</button></article>`).join('') : '<div class="empty-page"><span class="empty-symbol">✳</span><h3>还没有照片</h3><p>上传第一张两个人的回忆。</p></div>'}</div></section>`;
+  const groups = new Map();
+  for (const photo of photos) {
+    const category = (photo.category || photo.group || '').trim() || '未分类';
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(photo);
+  }
+  const selectedGroup = ui.photoGroup?.trim() || '';
+  const groupNotice = selectedGroup && !groups.has(selectedGroup) ? `<div class="photo-group-notice"><strong>“${escapeHtml(selectedGroup)}”分组还没有照片</strong><span>上传时把相册分组填写为这个城市名，照片就会出现在这里。</span></div>` : '';
+  const groupSections = [...groups.entries()].map(([category, entries]) => `<section class="photo-group ${selectedGroup === category ? 'is-selected' : ''}" id="photo-group-${encodeURIComponent(category)}"><div class="photo-group-heading"><div><span class="panel-kicker">PHOTO GROUP</span><h2>${escapeHtml(category)}</h2></div><span>${entries.length} 张</span></div><div class="photo-grid">${entries.map(photo => `<article class="photo-card"><div class="photo-frame" data-photo-id="${escapeHtml(photo.id)}">${remote ? '加载中…' : '<span>仅连接私有仓库后可读取图片</span>'}</div><div class="photo-caption"><span>${escapeHtml(photo.caption || fmtDay((photo.createdAt || '').slice(0, 10)))}</span><small>${escapeHtml(roleName(photo.owner))}</small></div><button class="text-button danger-link" data-action="delete-photo" data-id="${escapeHtml(photo.id)}">删除</button></article>`).join('')}</div></section>`).join('');
+  return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE GALLERY</div><h1>照片</h1><p class="intro-copy">留下一些轻轻的瞬间，保存在共享的私有仓库。上传时填写城市或主题，就能整理成不同分组。</p></div></div><section class="panel feature-panel"><form class="form-stack inline-form" data-form="photo"><label class="field"><span>选择图片</span><input type="file" name="image" accept="image/webp,image/jpeg,image/png" required></label><label class="field"><span>照片分组（可选）</span><input name="category" list="photo-category-options" maxlength="60" placeholder="例如：杭州 / 第一次旅行"><datalist id="photo-category-options">${[...new Set([...groups.keys()].filter(name => name !== '未分类'), ...['me', 'partner'].map(role => profile(role).city).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}"></option>`).join('')}</datalist></label><label class="field"><span>照片说明（可选）</span><input name="caption" maxlength="120" placeholder="这一天，我们……"></label><p class="field-hint">推荐 WebP，最长边 1600 像素，压缩目标约 500 KB，单张小于 1 MB，最多 ${PHOTO_LIMIT} 张。私有仓库保存，提交历史中仍可找回。</p><button class="button button-dark" type="submit" ${photos.length >= PHOTO_LIMIT ? 'disabled' : ''}>上传照片</button></form>${groupNotice}${groupSections || '<div class="empty-page"><span class="empty-symbol">✳</span><h3>还没有照片</h3><p>上传第一张两个人的回忆。</p></div>'}</section>`;
 }
 
 function showTreeholePrompt(id) {
@@ -465,7 +520,7 @@ async function answerTreehole(id, willing) {
   data.treeholes = data.treeholes.map(entry => entry.id === id ? saved : entry);
   if (!remote) saveDemo();
   closeModal(); renderShell();
-  if (willing) showModal(`<form class="form-stack" data-form="treehole-reply" data-id="${escapeHtml(id)}">${modalHeader('我在认真听', 'A PLACE TO BE HEARD')}<p class="treehole-content">${escapeHtml(item.content)}</p><label class="field"><span>留一句回应（可选）</span><textarea name="reply" maxlength="500" rows="3">${escapeHtml(item.reply || '')}</textarea></label><div class="form-actions"><span></span><button class="button button-dark" type="submit">送出回应</button></div></form>`);
+  if (willing) treeholeThreadModal(saved);
   else toastMessage('已告诉对方你还需要一点时间');
 }
 
@@ -518,7 +573,7 @@ async function uploadPhoto(form) {
   const file = form.get('image');
   const { base64, mime, size, width, height } = await compressPhoto(file);
   if (connection !== remote || version !== connectionVersion) throw new Error('连接已变更，图片尚未上传。');
-  const record = { id: makeId(), owner, caption: form.get('caption').trim(), imagePath: '', mime, size, width, height, createdAt: isoNow() };
+  const record = { id: makeId(), owner, category: form.get('category')?.trim() || '未分类', caption: form.get('caption').trim(), imagePath: '', mime, size, width, height, createdAt: isoNow() };
   record.imagePath = photoPath(record.id, mime);
   const uploaded = await connection.savePhoto(record, base64);
   let saved;
@@ -612,10 +667,10 @@ function showSettings() {
   const repo = savedRepository() || {};
   const activeRepo = remote ? `${remote.owner}/${remote.repo}` : repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : "尚未连接";
   showModal(`<form class="form-stack settings-form" data-form="settings">${modalHeader("你们的空间", "SPACE SETTINGS")}
-    <div class="settings-section"><div class="settings-section-title"><strong>这台设备的使用者</strong><span>只影响当前设备</span></div><div class="segmented role-segment"><label><input type="radio" name="role" value="me" ${ui.role === "me" ? "checked" : ""}/><span>${escapeHtml(profile("me").name || "我")}</span></label><label><input type="radio" name="role" value="partner" ${ui.role === "partner" ? "checked" : ""}/><span>${escapeHtml(profile("partner").name || "TA")}</span></label></div></div>
-    <p class="field-hint">展示档案由你们自行选择，双方互相信任使用，不代表 GitHub 已验证身份。使用 GitHub Token 授权，不是自建账号密码登录。</p>
+    <div class="settings-section"><div class="settings-section-title"><strong>这台设备绑定的账号</strong><span>连接后固定使用该档案</span></div><div class="segmented role-segment"><label><input type="radio" name="role" value="me" ${ui.role === "me" ? "checked" : ""}/><span>${escapeHtml(profile("me").name || "我")}</span></label><label><input type="radio" name="role" value="partner" ${ui.role === "partner" ? "checked" : ""}/><span>${escapeHtml(profile("partner").name || "TA")}</span></label></div></div>
+    <p class="field-hint">选择这台设备对应的账号后，页面会一直使用该账号的视角；另一台设备绑定另一份档案。这里仅用于双方共享空间的账号识别，不代表 GitHub 身份验证。</p>
     <div class="settings-pair">${['me', 'partner'].map((role, index) => `<label class="field"><span>档案 ${index + 1} · 昵称</span><input name="name-${role}" maxlength="24" value="${escapeHtml(profile(role).name)}" required /></label><label class="field"><span>档案 ${index + 1} · 城市</span><input name="city-${role}" maxlength="40" value="${escapeHtml(profile(role).city)}" placeholder="例如：杭州" required /></label>`).join('')}</div>
-    <div class="form-actions"><span class="field-hint">${remote ? '仅更新所选档案的资料' : '体验资料只保存在此设备'}</span><button class="button button-light" type="submit" name="intent" value="profile">保存资料与视角</button></div>
+    <div class="form-actions"><span class="field-hint">${remote ? '仅更新绑定账号的资料' : '体验资料只保存在此设备'}</span><button class="button button-light" type="submit" name="intent" value="profile">保存资料与账号绑定</button></div>
     <div class="settings-section sync-section"><div class="settings-section-title"><strong>GitHub 私有仓库</strong><span>${escapeHtml(activeRepo)}</span></div><div class="settings-pair"><label class="field"><span>仓库拥有者</span><input name="owner" autocomplete="off" value="${escapeHtml(remote?.owner || repo.owner || "")}" placeholder="GitHub 用户名" /></label><label class="field"><span>仓库名称</span><input name="repo" autocomplete="off" value="${escapeHtml(remote?.repo || repo.repo || "")}" placeholder="私有数据仓库" /></label></div><label class="field"><span>Fine-grained Token <em>每台设备单独授权</em></span><input name="token" type="password" autocomplete="new-password" placeholder="${storageGet(TOKEN_KEY) ? '当前设备已记住；留空可复用' : '粘贴只授权此私有仓库的 Token'}" /></label><label class="field"><span>分支</span><input name="branch" value="${escapeHtml(remote?.branch || repo.branch || "main")}" placeholder="main" /></label><p class="security-note">你已同意在此设备记住 Token，连接成功后会保存在浏览器本地存储，重新启动 PWA 自动连接；断开会清除。请勿在公用设备使用。它不是加密保险箱，同设备其他有权访问浏览器资料的人可能读取；请只授权单一私有仓库的 Contents 读写，必要时到 GitHub 撤销 Token。删除内容仍会留在 Git 历史中。</p></div>
     <p class="field-hint">建议数据仓库放在共同的 Organization 下，双方作为组织成员各自申请限权 Token；仅作为个人仓库的外部协作者可能无法使用这类 Token。</p>
     <div class="form-actions settings-actions">${remote ? `<button class="text-button danger-link" type="button" data-action="disconnect">断开并清除此页数据</button>` : `<button class="text-button muted" type="button" data-action="reset-demo">恢复体验数据</button>`}<button class="button button-dark" type="button" data-action="connect">${remote ? "重新连接仓库" : "连接私有仓库"}</button></div><p class="field-hint">连接时只补齐仓库中缺失的档案，已有资料将保留。双人授权配置见 README。</p></form>`, true);
@@ -769,9 +824,14 @@ async function handleAction(button) {
   const id = button.dataset.id;
   if (action === "navigate") {
     ui.view = button.dataset.view || "home";
+    if (ui.view !== 'photos') ui.photoGroup = '';
     renderShell();
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (ui.view === "whispers") await markVisibleUnread();
+    return;
+  }
+  if (action === 'navigate-photos-group') {
+    navigateToPhotoGroup(button.dataset.group);
     return;
   }
   if (action === "settings") { showSettings(); return; }
@@ -809,7 +869,6 @@ async function handleAction(button) {
   if (action === "toggle-checkin") { await toggleCheckin(id); return; }
   if (action === "refresh") { if (remote) await syncNow(); else { refreshWeather(); toastMessage("体验数据已刷新"); } return; }
   if (action === "weather") { refreshWeather(); return; }
-  if (action === "switch-role") { ui.role = counterpartRole(); ui.draft = ''; closeModal(); storageSet(ROLE_KEY, ui.role); renderShell(); refreshWeather(); return; }
   if (action === "disconnect") { disconnect(); return; }
   if (action === "reset-demo") { resetDemo(); return; }
   if (action === "install" && ui.installEvent) { ui.installEvent.prompt(); ui.installEvent = null; renderShell(); }
@@ -943,18 +1002,26 @@ async function submitForm(formElement, intent = 'profile') {
     } else if (kind === 'treehole') {
       const content = form.get('content').trim();
       if (!content) throw new Error('请写下想说的心事。');
-      const item = { id: makeId(), owner: ui.role, recipient: counterpartRole(), content, createdAt: isoNow(), status: 'pending', readAt: null };
+      const createdAt = isoNow();
+      const item = { id: makeId(), owner: ui.role, recipient: counterpartRole(), content, createdAt, messages: [{ id: makeId(), sender: ui.role, content, createdAt }], status: 'pending', readAt: null };
       const saved = await persistRecord('treeholes', item);
       data.treeholes.unshift(saved);
       if (!remote) saveDemo();
       formElement.reset();
       renderShell(); toastMessage('心事已经放进树洞');
     } else if (kind === 'treehole-reply') {
-      const item = data.treeholes.find(entry => entry.id === formElement.dataset.id && entry.owner !== ui.role && entry.readAt);
+      const item = data.treeholes.find(entry => entry.id === formElement.dataset.id && entry.readAt);
       if (!item) throw new Error('请先选择愿意倾听。');
       const reply = form.get('reply').trim();
-      if (!reply) { closeModal(); return; }
-      const saved = await persistRecord('treeholes', { ...item, reply, status: 'replied', respondedAt: isoNow() });
+      if (!reply) return;
+      const respondedAt = isoNow();
+      const messages = treeholeMessages(item);
+      messages.push({ id: makeId(), sender: ui.role, content: reply, createdAt: respondedAt });
+      const update = { ...item, messages, status: 'replied', respondedAt };
+      // Preserve the legacy field so older clients still show the latest
+      // response from the listener.
+      if (ui.role !== item.owner) update.reply = reply;
+      const saved = await persistRecord('treeholes', update);
       data.treeholes = data.treeholes.map(entry => entry.id === item.id ? saved : entry);
       if (!remote) saveDemo();
       closeModal(); renderShell(); toastMessage('回应已送出');
@@ -1032,6 +1099,22 @@ document.addEventListener("click", async (event) => {
   catch (error) { toastMessage(error.message || '操作没有完成，请重试', true); }
   finally { ui.busy = false; button.disabled = false; }
 });
+
+// Leaflet keeps interactive tooltip clicks inside its own layer, so map
+// markers dispatch this small app-level event for the shared navigation path.
+document.addEventListener('between-us:navigate-photos-group', (event) => {
+  navigateToPhotoGroup(event.detail?.group);
+});
+
+// Leaflet stops bubbling on interactive tooltips. Capture the marker action
+// before Leaflet handles the click so the same button works on touch and mouse.
+document.addEventListener('click', (event) => {
+  const button = event.target.closest?.('.city-album-link');
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  navigateToPhotoGroup(button.dataset.group);
+}, true);
 
 document.addEventListener("submit", async (event) => {
   const form = event.target.closest("form[data-form]");
