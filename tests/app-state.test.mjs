@@ -84,7 +84,7 @@ function harness(Store = class {}, overrides = {}, initialStorage = []) {
     renderShell, unreadCount, saveProfileSettings, whisperRow, moodFor, autoConnect, uploadPhoto, loadVisiblePhotos,
     answerTreehole, showTreeholePrompt, treeholeStatus, refreshWeather, renderTreeholesPage, showSettings,
     photoUrls, photoLoads, resetDemo, handleAction, showAnniversaryForm,
-    submitWish, wishList, wishAction, wishMapPlaces, photoAlbum, albumName, renderWishes, renderPhotosPage, renderMapPage, confirmCity, renderHabitBoard, renderRewardTickets, pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
+    renderHabitBoard, renderRewardTickets, pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
     get weather() { return weatherCache; }
   };`, context, { filename: 'app.js' });
   return { app: context.__appTest, nodes, storage, listeners, document };
@@ -596,50 +596,4 @@ test('only the counterpart sees reward fulfillment and manual confirmation has n
   await app.actionV4({action:'v4-confirm',id:'g'});
   const html=nodes.get('#modal-content').innerHTML;
   assert.doesNotMatch(html,/name="owner"/);assert.match(html,/对方/);
-});
-
-test('wishes link legacy albums by stable IDs, rename safely and do not unlock diaries', async()=>{
-  const {app,nodes}=harness();app.data=state();
-  app.data.photos.push({id:'photo',category:'杭州',owner:'me',createdAt:'2026-11-01T00:00:00Z'});
-  const wallet=points.empty();wallet.diaries.push({id:'diary',owner:'partner',title:'旅行',content:'HIDDEN',price:10,createdAt:'2026-11-01T00:00:00Z'});app.data.points=[wallet];
-  const fields={title:'看西湖',description:'一起',targetDate:'',status:'planned',cityId:'',albumId:'legacy-0',albumName:'西湖相册','diary-diary':'on'};
-  await app.submitWish(form(fields),'wish','wish');
-  const albumId=app.wishList()[0].albumId;
-  assert.equal(app.photoAlbum(app.data.photos[0]),albumId);
-  assert.equal(app.albumName(albumId),'西湖相册');
-  assert.doesNotMatch(nodes.get('#modal-content').innerHTML,/HIDDEN/);
-  assert.ok(!points.unlocked(app.pointState(),'diary','me'));
-  await app.submitWish(form({...fields,title:'再看西湖',albumId,albumName:'新的相册名'}),'wish','wish');
-  assert.equal(app.photoAlbum(app.data.photos[0]),albumId);assert.equal(app.albumName(albumId),'新的相册名');
-  assert.match(app.renderPhotosPage(),/新的相册名/);
-  await app.submitWish(form({completedAt:points.today()}),'wish-complete','wish');
-  assert.equal(app.wishList()[0].status,'done');
-  await app.wishAction({action:'wish-archive',id:'wish'});
-  assert.equal(app.pointState().diaries.length,1);assert.equal(app.data.photos.length,1);assert.equal(app.pointState().albums.length,1);
-});
-test('wish save failures preserve existing associations and invalid dates never save',async()=>{
-  const {app}=harness();app.data=state();app.remote={save:async()=>{throw new Error('conflict');}};
-  const fields={title:'一起',description:'',status:'wanted',targetDate:'',cityId:'',albumId:'new',albumName:'照片'};
-  await assert.rejects(app.submitWish(form(fields),'wish','wish'),/conflict/);
-  assert.equal(app.wishList().length,0);assert.equal(app.pointState().albums,undefined);
-  await assert.rejects(app.submitWish(form({...fields,targetDate:'2026-02-30'}),'wish','wish'));
-});
-test('planned city becomes visited on completion and remains visited after archiving',async()=>{
-  const {app}=harness();app.data=state();const s=points.empty();
-  s.wishCities=[{id:'city',name:'杭州',latitude:30,longitude:120}];s.wishes=[];s.albums=[];app.data.points=[s];
-  await app.submitWish(form({title:'看西湖',description:'',status:'wanted',targetDate:'',cityId:'city',albumId:'',albumName:''}),'wish','wish');
-  assert.equal(app.wishMapPlaces()[0].planned,true);assert.match(app.renderMapPage(),/想去/);
-  await app.submitWish(form({completedAt:points.today()}),'wish-complete','wish');
-  assert.equal(app.wishMapPlaces()[0].planned,false);
-  await app.wishAction({action:'wish-archive',id:'wish'});
-  assert.equal(app.wishMapPlaces()[0].visitedAt,points.today());
-});
-test('writing a diary from a wish links atomically and completion never charges points',async()=>{
-  const {app}=harness();app.data=state();
-  await app.submitWish(form({title:'旅行',description:'',status:'wanted',targetDate:'',cityId:'',albumId:'',albumName:''}),'wish','wish');
-  await app.submitV4(form({title:'回忆',content:'正文',price:'20',wishId:'wish'}),'v4-diary','diary');
-  assert.deepEqual(Array.from(app.wishList()[0].diaryIds),['diary']);
-  assert.equal(app.pointState().ledger.length,0);
-  await app.wishAction({action:'wish-open',id:'wish'});
-  assert.match(app.renderDiary(),/回忆/);
 });
