@@ -24,6 +24,8 @@ export function mountCityMap(people, places = []) {
   const key = JSON.stringify(markers.map(point => [point.latitude, point.longitude]));
   const map = L.map(root, { minZoom: 2, maxZoom: 16, worldCopyJump: true });
   activeMap = map;
+  // Keep the library credit as text so its default colored badge does not introduce another palette.
+  map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>');
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'

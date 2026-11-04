@@ -104,7 +104,7 @@ test('HTML and native module asset references resolve to included public files',
   assert.ok(references.includes('manifest.webmanifest'));
   assert.ok(references.includes('app.js'));
   assert.ok(references.includes('icons/icon-180.png'));
-  for (const reference of references) assert.ok(publicFiles.includes(reference), reference);
+  for (const reference of references) assert.ok(publicFiles.includes(reference.split('?')[0]), reference);
   for (const file of ['app.js', 'github-store.mjs', 'date-utils.mjs', 'v2-utils.mjs', 'image-utils.mjs', 'city-map.mjs', 'points.mjs']) {
     const source = await readFile(join(root, file), 'utf8');
     for (const match of source.matchAll(/(?:from\s*|import\s*)['"](\.\/[^'"]+)['"]/g)) {
@@ -144,7 +144,9 @@ test('service worker installs the complete shell under a GitHub Pages project su
   assert.equal(worker.skipped, 1);
   assert.equal(worker.stores.size, 1);
   const cachedUrls = [...[...worker.stores.values()][0].keys()];
-  const expected = ['./', ...publicFiles.filter((file) => file !== 'sw.js').map((file) => `./${file}`)]
+  const html = await readFile(join(root, 'index.html'), 'utf8');
+  const themeUrl = html.match(/href="(\.\/styles\.css\?v=[^"]+)"/)[1];
+  const expected = ['./', themeUrl, ...publicFiles.filter((file) => file !== 'sw.js').map((file) => `./${file}`)]
     .map((file) => new URL(file, workerUrl).href).sort();
   assert.deepEqual(cachedUrls.sort(), expected);
   assert.ok(cachedUrls.every((url) => url.startsWith('https://example.github.io/couple/')));

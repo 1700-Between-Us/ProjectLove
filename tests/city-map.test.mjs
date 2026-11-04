@@ -20,7 +20,7 @@ test('map markers open a persistent popup whose album button navigates to the gr
   };
   globalThis.CustomEvent = class { constructor(type, options) { this.type = type; this.detail = options.detail; } };
   let popup;
-  const map = { fitBounds() {}, getCenter: () => ({ lat: 39, lng: 116 }), getZoom: () => 9, on() {}, remove() {} };
+  const map = { attributionControl: { setPrefix() {} }, fitBounds() {}, getCenter: () => ({ lat: 39, lng: 116 }), getZoom: () => 9, on() {}, remove() {} };
   globalThis.L = {
     map: () => map,
     tileLayer: () => ({ addTo() {} }),

@@ -18,7 +18,7 @@ const moodOptions = [
   { key: "sunny", icon: "☀", label: "晴朗", color: "sun" },
   { key: "calm", icon: "◌", label: "平静", color: "mint" },
   { key: "miss", icon: "♡", label: "想念", color: "rose" },
-  { key: "tired", icon: "☁", label: "疲惫", color: "blue" },
+  { key: "tired", icon: "☁", label: "疲惫", color: "rose-soft" },
   { key: "low", icon: "◒", label: "低落", color: "lavender" },
   { key: "busy", icon: "↗", label: "忙碌", color: "amber" },
   { key: "anxious", icon: "⌁", label: "有点焦虑", color: "coral" },
@@ -378,7 +378,7 @@ function renderDashboard() {
       </section>
 
       <section class="panel habits-panel">
-        <div class="panel-head"><div class="section-title"><span class="section-mark mark-blue">${icon("check", 17)}</span><div><span class="panel-kicker">LITTLE RITUALS</span><h2>今天的小习惯</h2></div></div><button class="icon-button small" data-action="add-habit" title="添加习惯" aria-label="添加习惯">${icon("plus", 18)}</button></div>
+        <div class="panel-head"><div class="section-title"><span class="section-mark mark-rose-soft">${icon("check", 17)}</span><div><span class="panel-kicker">LITTLE RITUALS</span><h2>今天的小习惯</h2></div></div><button class="icon-button small" data-action="add-habit" title="添加习惯" aria-label="添加习惯">${icon("plus", 18)}</button></div>
         ${myHabits.length ? `<div class="habit-preview-list">${myHabits.slice(0, 3).map((h) => habitRow(h, true)).join("")}</div><div class="panel-footer"><span class="unread-caption">本周完成 ${myHabits.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span><button class="text-button" data-action="navigate" data-view="habits">查看习惯 ${icon("arrow", 14)}</button></div>` : `<div class="empty-inline small-empty"><span class="empty-symbol">✓</span><p>从一个小小的好习惯开始。</p><button class="text-button" data-action="add-habit">添加习惯 ${icon("arrow", 14)}</button></div>`}
       </section>
 
@@ -469,7 +469,7 @@ function renderTreeholeDashboard() {
   const visible = latest && (latest.owner === ui.role || latest.readAt);
   const preview = latest ? (visible ? latest.content : '内容会在你准备好倾听时打开。') : '';
   return `<section class="panel treehole-dashboard-panel">
-    <div class="panel-head"><div class="section-title"><span class="section-mark mark-blue">${icon("heart", 16)}</span><div><span class="panel-kicker">A PLACE TO BE HEARD</span><h2>树洞</h2></div></div><button class="icon-button small" data-action="navigate" data-view="treeholes" title="打开树洞" aria-label="打开树洞">${icon("arrow", 16)}</button></div>
+    <div class="panel-head"><div class="section-title"><span class="section-mark mark-rose-soft">${icon("heart", 16)}</span><div><span class="panel-kicker">A PLACE TO BE HEARD</span><h2>树洞</h2></div></div><button class="icon-button small" data-action="navigate" data-view="treeholes" title="打开树洞" aria-label="打开树洞">${icon("arrow", 16)}</button></div>
     ${latest ? `<div class="treehole-dashboard-preview"><div class="treehole-preview-heading"><strong>${escapeHtml(roleName(latest.owner))} 的话题</strong><time>${escapeHtml(fmtTime(latest.updatedAt || latest.createdAt))}</time></div><p>${escapeHtml(preview)}</p><small>${escapeHtml(treeholeStatus(latest))} · ${treeholeMessageCount(latest)} 条对话</small></div>` : `<div class="empty-inline"><span class="empty-symbol">♡</span><p>这里还很安静，<br />写下第一段心事吧。</p></div>`}
     <div class="panel-footer"><span class="unread-caption">${items.length ? `${items.length} 个对话话题` : '给彼此留一个被听见的地方'}</span><button class="text-button" data-action="navigate" data-view="treeholes">打开树洞 ${icon("arrow", 14)}</button></div>
   </section>`;

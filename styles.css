@@ -1,21 +1,25 @@
 :root {
   font-family: "DM Sans", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  color: #2c2227;
-  background: #f6f2f4;
+  color: var(--ink);
+  background: #fff1f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #2c2227;
-  --muted: #977a89;
-  --line: #e9e3e6;
-  --paper: #ffffff;
-  --forest: #3c1629;
-  --forest-light: #f2ecef;
-  --coral: #e37db0;
-  --sage: #bd9eae;
-  --yellow: #e9559f;
-  --lilac: #cba6b8;
-  --blue: #ca9fb4;
-  --shadow: 0 14px 44px rgba(44, 34, 39, .045);
+
+  --ink: #57213c;
+  --muted: #86536c;
+  --line: #efc9dc;
+  --paper: #fff8fc;
+  --forest: #a62c66;
+  --forest-light: #fce5f0;
+  --coral: #cf568f;
+  --sage: #e397bd;
+  --yellow: #e8accb;
+  --lilac: #d885ae;
+  --rose-accent: #d5659b;
+  --shadow: 0 16px 44px rgba(139, 50, 91, .09);
+  --text-gradient: linear-gradient(115deg, #812048, #ad376d);
+  --surface-gradient: linear-gradient(140deg, #fffafd, #fce9f2);
+  --accent-gradient: linear-gradient(125deg, #a02b61, #c64a82);
 }
 
 * { box-sizing: border-box; }
@@ -142,7 +146,7 @@ h1, h2, h3, p { margin-top: 0; }
 .mark-coral { background: #fbebf3; color: #cf72a1; }
 .mark-mint { background: #f4eef1; color: #9a6f84; }
 .mark-lilac { background: #f6eff2; color: #b2849b; }
-.mark-blue { background: #f6edf2; color: #af7893; }
+.mark-rose-soft { background: #f6edf2; color: #af7893; }
 .mark-yellow { background: #fbe5f0; color: #b03975; }
 .section-title h2, .points-content h2 { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .section-title .panel-kicker { font-size: 8px; letter-spacing: 1px; }
@@ -177,7 +181,7 @@ button.mood-person:hover .mood-avatar { transform: scale(1.04); }
 .mood-sun { background: #fbd9ea; color: #bc4983; }
 .mood-mint { background: #f0e8ec; color: #936c80; }
 .mood-rose { background: #f9e6f0; color: #c76998; }
-.mood-blue { background: #f3e9ee; color: #a87790; }
+.mood-rose-soft { background: #f3e9ee; color: #a87790; }
 .mood-lavender { background: #f4eaef; color: #ac8398; }
 .mood-amber { background: #f9ddeb; color: #b9437e; }
 .mood-coral { background: #f8e2ed; color: #c86c9a; }
@@ -486,20 +490,7 @@ button.mood-person:hover .mood-avatar { transform: scale(1.04); }
 }
 
 /* Pink foundation shared across every module. */
-:root {
-  --ink: #5d173a;
-  --muted: #8e5672;
-  --line: #edc3d8;
-  --paper: #ffffff;
-  --forest: #861950;
-  --forest-light: #ffe9f4;
-  --coral: #d35f99;
-  --sage: #e882b5;
-  --yellow: #df8eb7;
-  --lilac: #e19ec0;
-  --blue: #eb72af;
-  --shadow: 0 16px 44px rgba(122, 37, 80, .10);
-}
+
 
 html, body { background: #fff1f8; }
 body {
@@ -598,7 +589,7 @@ body {
 .art-caption { color: rgba(255, 219, 237, .72); }
 .panel { border-color: #ebc4d8; background-color: rgba(255, 255, 255, .84); background-image: none; }
 .section-mark { background: #fde5f1; color: #b13975; }
-.mark-coral, .mark-mint, .mark-lilac, .mark-blue, .mark-yellow { background: #fde5f1; color: #b13975; }
+.mark-coral, .mark-mint, .mark-lilac, .mark-rose-soft, .mark-yellow { background: #fde5f1; color: #b13975; }
 .anniversary-date { border-color: #efc7db; background: #feeff6; }
 .anniversary-date .date-month, .anniversary-info > span { color: #ba4d84; }
 .anniversary-date strong { color: #72234b; }
@@ -608,7 +599,7 @@ body {
 .anniversary-footer > span, .unread-caption { color: #a76d8a; }
 .empty-inline p { color: #9d6682; }
 .empty-symbol { color: #d4689e; }
-.mood-sun, .mood-mint, .mood-rose, .mood-blue, .mood-lavender, .mood-amber, .mood-coral, .mood-red { background: #fde5f1; color: #b13975; }
+.mood-sun, .mood-mint, .mood-rose, .mood-rose-soft, .mood-lavender, .mood-amber, .mood-coral, .mood-red { background: #fde5f1; color: #b13975; }
 .mood-divider { background: #eecbdc; }
 .mood-copy strong { color: #872757; }
 .mood-copy > span { color: #9d6380; }
@@ -864,33 +855,17 @@ body {
 .reward-ticket-title { margin-top: 28px; color: #872757; font-size: 15px; }
 
 /* V5.2: one rose palette, with readable gradients for text and icon strokes. */
-:root {
-  --ink: #57213c;
-  --muted: #86536c;
-  --line: #efc9dc;
-  --paper: #fff8fc;
-  --forest: #a62c66;
-  --forest-light: #fce5f0;
-  --coral: #cf568f;
-  --sage: #e397bd;
-  --yellow: #e8accb;
-  --lilac: #d885ae;
-  --blue: #d5659b;
-  --shadow: 0 16px 44px rgba(139, 50, 91, .09);
-  --text-gradient: linear-gradient(115deg, #812048, #ad376d);
-  --surface-gradient: linear-gradient(140deg, #fffafd, #fce9f2);
-  --accent-gradient: linear-gradient(125deg, #a02b61, #c64a82);
-}
+
 body { accent-color: #b63873; }
 ::selection { background: #f4c2d9; color: #681c40; -webkit-text-fill-color: #681c40; }
 .button-dark, .v4-tabs [aria-pressed="true"], .check-toggle.checked, .check-toggle.is-done { background: var(--accent-gradient); color: #fff; -webkit-text-fill-color: #fff; }
 .button-dark:hover { background: linear-gradient(125deg, #89214f, #b73b73); }
-.button-dark svg stop:first-child, .check-toggle.checked svg stop:first-child { stop-color: #fff9fc; }
-.button-dark svg stop:last-child, .check-toggle.checked svg stop:last-child { stop-color: #ffd9eb; }
-.connection-banner { background: linear-gradient(125deg, #812348, #ab3a70 55%, #bd5b88); --text-gradient: linear-gradient(110deg, #fffafd, #ffe0ed); }
+.button-dark svg stop:first-child, .check-toggle.checked svg stop:first-child, .connection-banner svg stop:first-child { stop-color: #fff9fc; }
+.button-dark svg stop:last-child, .check-toggle.checked svg stop:last-child, .connection-banner svg stop:last-child { stop-color: #ffd9eb; }
+.connection-banner { background: radial-gradient(ellipse at 78% 18%, rgba(255, 190, 218, .3), transparent 44%), linear-gradient(125deg, #812348, #ab3a70 55%, #bd5b88); --text-gradient: linear-gradient(110deg, #fffafd, #ffe0ed); }
 .connection-banner .banner-copy :is(h2, p, .banner-kicker, .banner-link), .city-name, .city-clock, .art-caption { color: #ffe7f2; }
 .nav-item.active { background: linear-gradient(120deg, #fce3ef, #f7d3e5); }
-.nav-count, .new-dot, .countdown-rail i, .summary-progress i { background: linear-gradient(120deg, #b43a73, #e27ba9); }
+.nav-count, .new-dot, .countdown-rail i, .summary-progress i, .sync-label i, .sync-label.is-synced i, .eyebrow-dot, .crumb-dot, .experience-badge i, .note-line i, .city-sun { background: linear-gradient(120deg, #b43a73, #e27ba9); }
 .avatar { background: linear-gradient(140deg, #fce1ee, #eaa9ca); color: #7a214b; }
 .avatar-partner { background: linear-gradient(140deg, #f4c5dc, #db8ab1); color: #702044; }
 .section-mark, .mood-avatar, .mood-choice-icon { background: var(--surface-gradient); color: #b23e77; }
@@ -900,6 +875,7 @@ body { accent-color: #b63873; }
 .leaflet-control-zoom a { color: #8f2858; background: #fff7fb; }
 .leaflet-control-attribution { color: #89516b; }
 .leaflet-control-attribution a { color: #a12e68; }
+.leaflet-container a { color: #a12e68; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #fff8fc; color: #782b50; }
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   :is(h1, h2, h3, h4, p, strong, small, time, em, legend, th, td,
@@ -915,12 +891,12 @@ body { accent-color: #b63873; }
     -webkit-text-fill-color: transparent;
     text-shadow: none;
   }
-  :is(.text-button, .banner-link, .settings-tab, .footer-settings) {
+  :is(.text-button, .banner-link, .settings-tab, .footer-settings, .leaflet-control-attribution a) {
     background-image: var(--text-gradient);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-  :is(.button-light, .city-album-link, .mood-avatar, .mood-choice-icon) {
+  :is(.button-light, .city-album-link, .mood-avatar, .mood-choice-icon, .section-mark) {
     background-image: var(--text-gradient), var(--surface-gradient);
     -webkit-background-clip: text, padding-box; background-clip: text, padding-box;
     -webkit-text-fill-color: transparent;
