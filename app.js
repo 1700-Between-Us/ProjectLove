@@ -350,6 +350,14 @@ function renderDashboard() {
         <button class="banner-link" data-action="navigate" data-view="whispers">去看看悄悄话 ${icon("arrow", 16)}</button>
       </div>
       <div class="city-link-art" aria-hidden="true">
+        <svg class="banner-doodles" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid slice">
+          <path class="doodle-cloud" d="M48 44c-8-13 6-24 16-17 4-20 32-17 33 0 17-5 25 14 13 20H48Z M436 77c-9-12 3-24 14-18 7-18 30-14 31 3 15-3 23 13 10 18h-55Z"/>
+          <g stroke-linejoin="round"><path d="m147 21 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z M365 29v14m-7-7h14 M534 34v12m-6-6h12 M206 143v12m-6-6h12"/>
+          <path d="M260 126l27-7 4 21-27 7Z M260 126l16 8 11-15 M383 143c-14-9-15-18-8-20 5-2 8 2 9 4 2-4 7-6 10-3 7 6-3 15-11 19Z"/>
+          <path d="m478 25 26-11-9 25-5-11-12-3Z m12 3 14-14"/></g>
+          <g stroke-dasharray="2 5"><path d="M305 157q20 13 42-1 M454 24q-29-14-45 0"/></g>
+          <g fill="#dca6bf" stroke="none"><circle cx="117" cy="76" r="2"/><circle cx="322" cy="24" r="2.5"/><circle cx="563" cy="104" r="2"/><circle cx="233" cy="61" r="1.8"/></g>
+        </svg>
         <div class="city city-left"><span class="city-sun"></span><span class="building b1"></span><span class="building b2"></span><span class="building b3"></span><span class="city-name">${escapeHtml(ownProfile.city || "你的城市")}</span></div>
         <svg class="route-line" viewBox="0 0 300 120" preserveAspectRatio="none"><path d="M9 93 C 75 3, 210 4, 290 78"/><circle cx="150" cy="29" r="3"/><circle cx="174" cy="32" r="2"/><circle cx="196" cy="38" r="1.6"/></svg>
         <div class="city city-right"><span class="building b1"></span><span class="building b2"></span><span class="building b3"></span><span class="city-name">${escapeHtml(partnerProfile.city || "TA 的城市")}</span></div>
