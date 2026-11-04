@@ -53,7 +53,7 @@ export function mountCityMap(people, places = []) {
     }).bindPopup(label, { className: 'city-label-popup', maxWidth: 360 }).addTo(map);
   }
   if (people.length === 2 && people.every(validCoordinates)) {
-    L.polyline(people.map(point => [point.latitude, point.longitude]), { color: '#5f9dd3', weight: 2, dashArray: '6 8' }).addTo(map);
+    L.polyline(people.map(point => [point.latitude, point.longitude]), { color: '#c44d88', weight: 2, dashArray: '6 8' }).addTo(map);
   }
   if (view?.key === key) map.setView(view.center, view.zoom);
   else if (markers.length) map.fitBounds(markers.map(point => [point.latitude, point.longitude]), { padding: [45, 45], maxZoom: 9 });
