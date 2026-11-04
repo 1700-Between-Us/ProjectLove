@@ -783,3 +783,19 @@ body {
   .form-actions .field-hint { max-width: 55%; }
   .check-toggle { width: 32px; height: 32px; }
 }
+
+/* Home treehole preview follows the spacing and hierarchy of the mood card. */
+.treehole-dashboard-panel { display: flex; min-width: 0; flex-direction: column; min-height: 181px; padding: 16px 18px 13px; }
+.treehole-dashboard-preview { min-width: 0; margin: 21px 0 12px; }
+.treehole-preview-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.treehole-preview-heading strong { color: #275b87; font-size: 12px; }
+.treehole-preview-heading time, .treehole-dashboard-preview small { color: #8b9cab; font-size: 10px; line-height: 1.6; }
+.treehole-dashboard-preview p { margin: 8px 0; color: #405d73; font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.treehole-dashboard-panel .panel-footer { margin-top: auto; }
+.leaflet-popup.city-label-popup { max-width: 80vw; }
+.city-label-popup .leaflet-popup-content { margin: 14px 30px 14px 14px; }
+.city-label-popup .city-tooltip-content { flex-wrap: wrap; }
+.city-label-popup .city-tooltip-content > span { flex: 1 1 140px; overflow: visible; overflow-wrap: anywhere; }
+.city-album-link:focus-visible { outline: 2px solid #245f91; outline-offset: 2px; }
+@media (min-width: 601px) and (max-width: 1200px) { .treehole-dashboard-panel { padding-right: 14px; padding-left: 14px; } }
+@media (max-width: 600px) { .treehole-dashboard-panel { min-height: 171px; padding: 14px 15px 12px; } }

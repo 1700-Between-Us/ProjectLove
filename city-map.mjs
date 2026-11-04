@@ -50,7 +50,7 @@ export function mountCityMap(people, places = []) {
     L.marker([point.latitude, point.longitude], {
       title: point.name,
       icon: L.divIcon({ className: `city-marker ${point.kind}`, html: point.kind === 'person' ? '♥' : '●', iconSize: [30, 30], iconAnchor: [15, 15] })
-    }).bindTooltip(label, { direction: 'top', className: 'city-label-tooltip', interactive: true }).addTo(map);
+    }).bindPopup(label, { className: 'city-label-popup', maxWidth: 360 }).addTo(map);
   }
   if (people.length === 2 && people.every(validCoordinates)) {
     L.polyline(people.map(point => [point.latitude, point.longitude]), { color: '#5f9dd3', weight: 2, dashArray: '6 8' }).addTo(map);
