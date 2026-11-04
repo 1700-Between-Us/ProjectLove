@@ -47,9 +47,20 @@ export function mountCityMap(people, places = []) {
       document.dispatchEvent(new CustomEvent('between-us:navigate-photos-group', { detail: { group: albumLink.dataset.group } }));
     });
     label.append(albumLink);
+    for (const wish of point.relatedWishes || []) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'city-album-link';
+      button.textContent = `${wish.status} · ${wish.title}`;
+      button.addEventListener('click', event => {
+        event.preventDefault(); event.stopPropagation();
+        document.dispatchEvent(new CustomEvent('between-us:open-wish', { detail: { id: wish.id } }));
+      });
+      label.append(button);
+    }
     L.marker([point.latitude, point.longitude], {
       title: point.name,
-      icon: L.divIcon({ className: `city-marker ${point.kind}`, html: point.kind === 'person' ? '♥' : '●', iconSize: [30, 30], iconAnchor: [15, 15] })
+      icon: L.divIcon({ className: `city-marker ${point.kind}${point.planned ? ' planned' : ''}`, html: point.kind === 'person' ? '♥' : point.planned ? '☆' : '●', iconSize: [30, 30], iconAnchor: [15, 15] })
     }).bindPopup(label, { className: 'city-label-popup', maxWidth: 360 }).addTo(map);
   }
   if (people.length === 2 && people.every(validCoordinates)) {

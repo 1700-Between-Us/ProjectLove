@@ -837,3 +837,12 @@ body {
 .habit-board small { display: block; margin-top: 4px; font-size: 10px; color: #7893a8; }
 .habit-board .board-done { color: #245f91; background: #e5f3fd; font-weight: 700; }
 .reward-ticket-title { margin-top: 28px; color: #275b87; font-size: 15px; }
+
+.city-marker.place.planned { border-style: dashed; background: #f7fcff; color: #245f91; font-size: 20px; }
+.wish-description { white-space: pre-wrap; overflow-wrap: anywhere; color: #405d73; line-height: 1.9; }
+.wish-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid #d6e7f2; }
+.wish-section h3 { margin: 0 0 12px; color: #275b87; font-size: 15px; }
+.wish-section p, .wish-links { color: #63839d; font-size: 12px; }
+.wish-detail .modal-head > div { min-width: 0; overflow-wrap: anywhere; }
+.wish-detail .modal-head button { flex-shrink: 0; }
+.wish-links .button { padding: 5px 8px; font-size: 12px; }

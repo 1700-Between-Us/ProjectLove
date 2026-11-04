@@ -112,6 +112,8 @@ export function valid(state) {
   const int = v => Number.isSafeInteger(v) && v >= 0 && v <= 100000;
   const day = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v;
   const schedule = p => p.mode === undefined || (['daily','days','weekly'].includes(p.mode) && Array.isArray(p.days) && p.days.length > 0 && p.days.every(d => Number.isInteger(d) && d >= 0 && d <= 6) && Number.isInteger(p.target) && p.target >= 1 && p.target <= 7);
+  const id = v => typeof v === 'string' && /^[\w-]+$/.test(v);
+  const optional = (key, check) => state[key] === undefined || (Array.isArray(state[key]) && state[key].every(check) && new Set(state[key].map(v => v.id)).size === state[key].length);
   return state?.id === 'shared' && ['rules', 'diaries', 'habits', 'checkins', 'ledger'].every(k => Array.isArray(state[k])) && state.settled && typeof state.settled === 'object'
     && state.rules.every(r => typeof r.id === 'string' && typeof r.name === 'string' && typeof r.reason === 'string' && ['gain', 'loss', 'reward'].includes(r.kind) && int(r.value) && typeof r.active === 'boolean')
     && state.diaries.every(d => typeof d.id === 'string' && role(d.owner) && typeof d.title === 'string' && typeof d.content === 'string' && int(d.price))
@@ -119,5 +121,8 @@ export function valid(state) {
     && state.checkins.every(c => typeof c.habitId === 'string' && role(c.owner) && day(c.date) && int(c.credit))
     && state.ledger.every(e => typeof e.id === 'string' && role(e.owner) && (role(e.actor) || e.actor === 'system') && Number.isSafeInteger(e.amount) && Number.isSafeInteger(e.requested) && typeof e.reason === 'string' && typeof e.source === 'string' && Number.isFinite(Date.parse(e.at)))
     && new Set(state.ledger.map(e => e.id)).size === state.ledger.length
+    && optional('wishes', w => id(w.id) && typeof w.title === 'string' && typeof w.description === 'string' && ['wanted','planned','done'].includes(w.status) && role(w.creator) && typeof w.archived === 'boolean' && (!w.targetDate || day(w.targetDate)) && (!w.completedAt || day(w.completedAt)) && (!w.cityId || id(w.cityId)) && (!w.albumId || id(w.albumId)) && Array.isArray(w.diaryIds) && w.diaryIds.every(id) && Number.isFinite(Date.parse(w.createdAt)) && Number.isFinite(Date.parse(w.updatedAt)))
+    && optional('albums', a => id(a.id) && typeof a.name === 'string' && Array.isArray(a.photoIds) && a.photoIds.every(id))
+    && optional('wishCities', c => id(c.id) && typeof c.name === 'string' && Number.isFinite(c.latitude) && Math.abs(c.latitude) <= 90 && Number.isFinite(c.longitude) && Math.abs(c.longitude) <= 180)
     && Object.values(state.settled).every(day) && ['me', 'partner'].every(r => balance(state, r) >= 0);
 }

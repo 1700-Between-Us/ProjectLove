@@ -255,7 +255,7 @@ function renderShell() {
           ${navItem("diary", "LoveDiary", "heart")}
           ${navItem("treeholes", "树洞", "heart")}
           ${navItem("map", "地图", "pin")}
-          ${navItem("photos", "照片", "spark")}
+          ${navItem("photos", "照片", "spark")}${navItem("wishes", "愿望清单", "heart")}
         </nav>
         <div class="side-spacer"></div>
         <div class="sidebar-note">
@@ -283,7 +283,7 @@ function renderShell() {
       </main>
       <nav class="mobile-nav" aria-label="底部导航">
         ${navItem("home", "今天", "home")}${navItem("habits", "习惯", "check")}${navItem("points", "积分", "spark")}${navItem("diary", "日记", "heart")}
-        ${navItem("treeholes", "树洞", "heart")}${navItem("map", "地图", "pin")}${navItem("photos", "照片", "spark")}
+        ${navItem("treeholes", "树洞", "heart")}${navItem("map", "地图", "pin")}${navItem("photos", "照片", "spark")}${navItem("wishes", "愿望清单", "heart")}
         <button class="nav-item ${ui.view === "settings" ? "active" : ""}" data-action="settings"><span class="nav-icon">${icon("settings")}</span><span>设置</span></button>
       </nav>
     </div>`;
@@ -298,12 +298,13 @@ function renderShell() {
     input?.focus({ preventScroll: true });
     input?.setSelectionRange(focused.start, focused.end);
   }
-  if (ui.view === 'map') mountCityMap(mapPeople(), data.places || []);
+  if (ui.view === 'map') mountCityMap(mapPeople(), wishMapPlaces());
   prunePhotoUrls();
   if (ui.view === 'photos') loadVisiblePhotos();
 }
 
 function renderView() {
+  if (ui.view === "wishes") return renderWishes();
   if (ui.view === "points") return renderPoints();
   if (ui.view === "diary") return renderDiary();
   if (ui.view === "whispers") return renderWhispersPage();
@@ -497,24 +498,25 @@ function renderTreeholesPage() {
 function renderMapPage() {
   const people = mapPeople();
   const distance = distanceKm(people[0], people[1]);
-  const places = [...(data.places || [])].sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
+  const places = [...wishMapPlaces()].sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
   return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE WORLD</div><h1>我们的地图</h1><p class="intro-copy">仅显示手动选择的城市中心，不读取实时位置。</p></div><button class="button button-dark" data-action="add-place">${icon('plus', 16)}去过的城市</button></div>
     <section class="panel feature-panel"><div class="map-heading"><strong>${escapeHtml(profile('me').city || '未设置')} ↔ ${escapeHtml(profile('partner').city || '未设置')}</strong><span>${distance === null ? '请分别确认两人的城市位置' : `直线相距约 ${Math.round(distance).toLocaleString('zh-CN')} 公里`}</span></div><div id="city-map" class="city-map" role="img" aria-label="两个人的位置和共同去过的城市地图"></div><p class="field-hint">地图可拖动、滚轮或按钮缩放。点击标点可查看详情并打开相册；地理信息与底图需要联网；© OpenStreetMap contributors。</p><div class="feature-actions"><button class="button button-light" data-action="set-city-location" data-role="${ui.role}">确认${escapeHtml(roleName(ui.role))}的城市</button>${!validCoordinates(profile(counterpartRole()).location) ? '<span class="field-hint">请让对方在自己的设备上确认城市</span>' : ''}</div></section>
-    <section class="panel feature-panel"><h2>一起去过的城市</h2><div class="feature-list">${places.length ? places.map(place => `<article class="feature-row"><div><strong>${escapeHtml(place.name)}</strong><time>${escapeHtml(fmtDay(place.visitedAt, { year: 'numeric', month: 'long', day: 'numeric' }))}</time></div><p>${escapeHtml(place.note || '一起走过的路')}</p><div class="feature-actions"><button class="text-button" data-action="navigate-photos-group" data-group="${escapeHtml(place.name)}">打开“${escapeHtml(place.name)}”相册 ${icon('arrow', 14)}</button><button class="text-button danger-link" data-action="delete-place" data-id="${escapeHtml(place.id)}">删除标点</button></div></article>`).join('') : '<p class="field-hint">还没有标点。添加城市后会显示在地图上。</p>'}</div></section>`;
+    <section class="panel feature-panel"><h2>想去和去过的城市</h2><div class="feature-list">${places.length ? places.map(place => `<article class="feature-row"><div><strong>${escapeHtml(place.name)}</strong><time>${place.visitedAt ? escapeHtml(fmtDay(place.visitedAt, { year: 'numeric', month: 'long', day: 'numeric' })) : '想去 / 已计划'}</time></div><p>${escapeHtml(place.note || '一起走过的路')}</p>${wishLinks('city', place.id)}<div class="feature-actions"><button class="text-button" data-action="navigate-photos-group" data-group="${escapeHtml(place.name)}">打开“${escapeHtml(place.name)}”相册 ${icon('arrow', 14)}</button>${(data.places || []).some(p => p.id === place.id) ? `<button class="text-button danger-link" data-action="delete-place" data-id="${escapeHtml(place.id)}">删除标点</button>` : ''}</div></article>`).join('') : '<p class="field-hint">还没有标点。添加城市后会显示在地图上。</p>'}</div></section>`;
 }
 
 function renderPhotosPage() {
   const photos = [...(data.photos || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const groups = new Map();
   for (const photo of photos) {
-    const category = (photo.category || photo.group || '').trim() || '未分类';
+    const category = photoAlbum(photo);
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(photo);
   }
+  for (const album of pointState().albums || []) if (!groups.has(album.id)) groups.set(album.id, []);
   const selectedGroup = ui.photoGroup?.trim() || '';
-  const groupNotice = selectedGroup && !groups.has(selectedGroup) ? `<div class="photo-group-notice"><strong>“${escapeHtml(selectedGroup)}”分组还没有照片</strong><span>上传时把相册分组填写为这个城市名，照片就会出现在这里。</span></div>` : '';
-  const groupSections = [...groups.entries()].map(([category, entries]) => `<section class="photo-group ${selectedGroup === category ? 'is-selected' : ''}" id="photo-group-${encodeURIComponent(category)}"><div class="photo-group-heading"><div><span class="panel-kicker">PHOTO GROUP</span><h2>${escapeHtml(category)}</h2></div><span>${entries.length} 张</span></div><div class="photo-grid">${entries.map(photo => `<article class="photo-card"><div class="photo-frame" data-photo-id="${escapeHtml(photo.id)}">${remote ? '加载中…' : '<span>仅连接私有仓库后可读取图片</span>'}</div><div class="photo-caption"><span>${escapeHtml(photo.caption || fmtDay((photo.createdAt || '').slice(0, 10)))}</span><small>${escapeHtml(roleName(photo.owner))}</small></div><button class="text-button danger-link" data-action="delete-photo" data-id="${escapeHtml(photo.id)}">删除</button></article>`).join('')}</div></section>`).join('');
-  return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE GALLERY</div><h1>照片</h1><p class="intro-copy">留下一些轻轻的瞬间，保存在共享的私有仓库。上传时填写城市或主题，就能整理成不同分组。</p></div></div><section class="panel feature-panel"><form class="form-stack inline-form" data-form="photo"><label class="field"><span>选择图片</span><input type="file" name="image" accept="image/webp,image/jpeg,image/png" required></label><label class="field"><span>照片分组（可选）</span><input name="category" list="photo-category-options" maxlength="60" placeholder="例如：杭州 / 第一次旅行"><datalist id="photo-category-options">${[...new Set([...groups.keys()].filter(name => name !== '未分类'), ...['me', 'partner'].map(role => profile(role).city).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}"></option>`).join('')}</datalist></label><label class="field"><span>照片说明（可选）</span><input name="caption" maxlength="120" placeholder="这一天，我们……"></label><p class="field-hint">推荐 WebP，最长边 1600 像素，压缩目标约 500 KB，单张小于 1 MB，最多 ${PHOTO_LIMIT} 张。私有仓库保存，提交历史中仍可找回。</p><button class="button button-dark" type="submit" ${photos.length >= PHOTO_LIMIT ? 'disabled' : ''}>上传照片</button></form>${groupNotice}${groupSections || '<div class="empty-page"><span class="empty-symbol">✳</span><h3>还没有照片</h3><p>上传第一张两个人的回忆。</p></div>'}</section>`;
+  const groupNotice = selectedGroup && !groups.has(selectedGroup) ? `<div class="photo-group-notice"><strong>“${escapeHtml(albumName(selectedGroup))}”分组还没有照片</strong><span>上传时选择对应的愿望相册，或填写此分组名称。</span></div>` : '';
+  const groupSections = [...groups.entries()].map(([category, entries]) => `<section class="photo-group ${selectedGroup === category ? 'is-selected' : ''}" id="photo-group-${encodeURIComponent(category)}"><div class="photo-group-heading"><div><span class="panel-kicker">PHOTO GROUP</span><h2>${escapeHtml(albumName(category))}</h2></div><span>${entries.length} 张</span></div>${wishLinks('album', category)}<div class="photo-grid">${entries.map(photo => `<article class="photo-card"><div class="photo-frame" data-photo-id="${escapeHtml(photo.id)}">${remote ? '加载中…' : '<span>仅连接私有仓库后可读取图片</span>'}</div><div class="photo-caption"><span>${escapeHtml(photo.caption || fmtDay((photo.createdAt || '').slice(0, 10)))}</span><small>${escapeHtml(roleName(photo.owner))}</small></div><button class="text-button danger-link" data-action="delete-photo" data-id="${escapeHtml(photo.id)}">删除</button></article>`).join('')}</div></section>`).join('');
+  return `<div class="view-heading compact-heading"><div><div class="eyebrow">OUR LITTLE GALLERY</div><h1>照片</h1><p class="intro-copy">留下一些轻轻的瞬间，保存在共享的私有仓库。上传时填写城市或主题，就能整理成不同分组。</p></div></div><section class="panel feature-panel"><form class="form-stack inline-form" data-form="photo"><label class="field"><span>选择图片</span><input type="file" name="image" accept="image/webp,image/jpeg,image/png" required></label>${albumUploadField(selectedGroup)}<label class="field"><span>照片分组（可选）</span><input name="category" list="photo-category-options" maxlength="60" placeholder="例如：杭州 / 第一次旅行"><datalist id="photo-category-options">${[...new Set([...groups.keys()].map(albumName).filter(name => name !== '未分类'), ...['me', 'partner'].map(role => profile(role).city).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}"></option>`).join('')}</datalist></label><label class="field"><span>照片说明（可选）</span><input name="caption" maxlength="120" placeholder="这一天，我们……"></label><p class="field-hint">推荐 WebP，最长边 1600 像素，压缩目标约 500 KB，单张小于 1 MB，最多 ${PHOTO_LIMIT} 张。私有仓库保存，提交历史中仍可找回。</p><button class="button button-dark" type="submit" ${photos.length >= PHOTO_LIMIT ? 'disabled' : ''}>上传照片</button></form>${groupNotice}${groupSections || '<div class="empty-page"><span class="empty-symbol">✳</span><h3>还没有照片</h3><p>上传第一张两个人的回忆。</p></div>'}</section>`;
 }
 
 function showTreeholePrompt(id) {
@@ -552,7 +554,16 @@ async function confirmCity(form) {
   const selection = geoSelection;
   const place = selection?.matches[Number(form.get('option'))];
   if (!place || !validCoordinates(place)) throw new Error('请选择一个有效的城市。');
-  if (selection.kind === 'profile') {
+  if (selection.kind === 'wish') {
+    const wishId = ui.cityWishId;
+    await updatePoints(state => {
+      const wish = state.wishes.find(w => w.id === wishId);
+      if (!wish) throw new Error('愿望已不存在。');
+      let city = [...(data.places || []), ...state.wishCities].find(c => Math.abs(c.latitude-place.latitude)<0.01 && Math.abs(c.longitude-place.longitude)<0.01);
+      if (!city) { city = { id: makeId(), name: place.name, latitude: place.latitude, longitude: place.longitude, region: place.region }; state.wishCities.push(city); }
+      wish.cityId = city.id;
+    });
+  } else if (selection.kind === 'profile') {
     const role = selection.role;
     if (role !== ui.role) throw new Error('请由本人确认自己的城市。');
     const updated = { ...profile(role), role, city: place.name, location: { latitude: place.latitude, longitude: place.longitude }, region: place.region, updatedAt: isoNow() };
@@ -580,11 +591,12 @@ async function deleteFeature(collection, id, message) {
 async function uploadPhoto(form) {
   if (!remote) throw new Error('请先连接私有仓库再上传图片。');
   if ((data.photos || []).length >= PHOTO_LIMIT) throw new Error(`最多保存 ${PHOTO_LIMIT} 张，请先删除旧照片。`);
+  if (form.get('albumId') && !(pointState().albums || []).some(a => a.id === form.get('albumId'))) throw new Error('关联相册不存在，请重新选择。');
   const connection = remote, version = connectionVersion, owner = ui.role;
   const file = form.get('image');
   const { base64, mime, size, width, height } = await compressPhoto(file);
   if (connection !== remote || version !== connectionVersion) throw new Error('连接已变更，图片尚未上传。');
-  const record = { id: makeId(), owner, category: form.get('category')?.trim() || '未分类', caption: form.get('caption').trim(), imagePath: '', mime, size, width, height, createdAt: isoNow() };
+  const record = { id: makeId(), owner, category: form.get('category')?.trim() || '未分类', albumId: form.get('albumId') || '', caption: form.get('caption').trim(), imagePath: '', mime, size, width, height, createdAt: isoNow() };
   record.imagePath = photoPath(record.id, mime);
   const uploaded = await connection.savePhoto(record, base64);
   let saved;
@@ -831,6 +843,7 @@ async function refreshWeather() {
 }
 
 async function handleAction(button) {
+  if (button.dataset.action.startsWith('wish-')) { await wishAction(button.dataset); return; }
   if (button.dataset.action.startsWith("v4-")) { await actionV4(button.dataset); return; }
   const action = button.dataset.action;
   const id = button.dataset.id;
@@ -838,6 +851,7 @@ async function handleAction(button) {
     ui.role = counterpartRole();
     ui.draft = '';
     ui.photoGroup = '';
+    ui.diaryWishId = '';
     pointConfirmation = null;
     const saved = storageSet(ROLE_KEY, ui.role);
     renderShell();
@@ -848,6 +862,7 @@ async function handleAction(button) {
   if (action === "navigate") {
     ui.view = button.dataset.view || "home";
     if (ui.view !== 'photos') ui.photoGroup = '';
+    ui.diaryWishId = '';
     renderShell();
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (ui.view === "whispers") await markVisibleUnread();
@@ -992,6 +1007,7 @@ async function submitForm(formElement, intent = 'profile') {
   const form = new FormData(formElement);
   const kind = formElement.dataset.form;
   try {
+    if (kind === 'wish' || kind === 'wish-complete') { await submitWish(form, kind, formElement.dataset.id); return; }
     if (kind.startsWith("v4-")) { await submitV4(form, kind, formElement.dataset.id); return; }
     if (kind === "anniversary") {
       const id = formElement.dataset.id || makeId();
@@ -1142,6 +1158,11 @@ document.addEventListener("click", async (event) => {
 
 // Leaflet keeps interactive tooltip clicks inside its own layer, so map
 // markers dispatch this small app-level event for the shared navigation path.
+document.addEventListener('between-us:open-wish', async (event) => {
+  if (ui.busy || ui.syncBusy) return;
+  try { await wishAction({action:'wish-open',id:event.detail?.id}); } catch(error) { toastMessage(error.message,true); }
+});
+
 document.addEventListener('between-us:navigate-photos-group', (event) => {
   navigateToPhotoGroup(event.detail?.group);
 });
@@ -1242,6 +1263,7 @@ function allCheckins() {
 async function updatePoints(change) {
   const next = structuredClone(pointState());
   points.settle(next);
+  next.wishes ||= []; next.albums ||= []; next.wishCities ||= [];
   change(next);
   if (!points.valid(next)) throw new Error('积分资料不完整，尚未保存。');
   const saved = await persistRecord('points', next);
@@ -1312,12 +1334,12 @@ async function actionV4({ action, id, kind }) {
   if (action === 'v4-diary') {
     const diary = state.diaries.find(d => d.id === id);
     if (diary && diary.owner !== ui.role) throw new Error('只能编辑自己的日记。');
-    v4Form('diary', diary ? '编辑日记' : '写一篇 LoveDiary', `${v4Field('title', '标题', diary?.title)}${v4Field('price', '解锁所需积分', diary?.price ?? 20, 'number')}<label class="field"><span>正文</span><textarea name="content" rows="10" maxlength="20000" required>${escapeHtml(diary?.content || '')}</textarea></label><p class="field-hint">保存后，对方可在奖励中兑换这篇日记。</p>`, id); return;
+    v4Form('diary', diary ? '编辑日记' : '写一篇 LoveDiary', `${wishDiaryField(diary)}${v4Field('title', '标题', diary?.title || (wishList().find(w => w.id === ui.diaryWishId)?.title || ''))}${v4Field('price', '解锁所需积分', diary?.price ?? 20, 'number')}<label class="field"><span>正文</span><textarea name="content" rows="10" maxlength="20000" required>${escapeHtml(diary?.content || '')}</textarea></label><p class="field-hint">保存后，对方可在奖励中兑换这篇日记。</p>`, id); return;
   }
   if (action === 'v4-read') {
     const diary = state.diaries.find(d => d.id === id);
     if (!diary || (diary.owner !== ui.role && !points.unlocked(state, id, ui.role))) throw new Error('请先解锁这篇日记。');
-    showModal(`<article class="form-stack v4-diary-reader">${modalHeader(escapeHtml(diary.title), 'LOVE DIARY')}<div class="v4-diary-body">${escapeHtml(diary.content)}</div></article>`); return;
+    showModal(`<article class="form-stack v4-diary-reader">${modalHeader(escapeHtml(diary.title), 'LOVE DIARY')}${wishLinks('diary', diary.id)}<div class="v4-diary-body">${escapeHtml(diary.content)}</div></article>`); return;
   }
   if (action === 'v4-confirm' || action === 'v4-diary-confirm') {
     const diary = action === 'v4-diary-confirm';
@@ -1346,6 +1368,12 @@ async function submitV4(form, kind, id) {
       const diary = { id: id || makeId(), owner: ui.role, title: form.get('title').trim(), content: form.get('content').trim(), price: points.amount(form.get('price')), createdAt: existing?.createdAt || isoNow(), updatedAt: isoNow() };
       if (!diary.title || !diary.content) throw new Error('请填写标题和正文。');
       state.diaries = [diary, ...state.diaries.filter(d => d.id !== diary.id)];
+      const wishId = form.get('wishId');
+      if (wishId) {
+        const w = state.wishes.find(w => w.id === wishId);
+        if (!w) throw new Error('关联愿望不存在。');
+        w.diaryIds = [...new Set([...w.diaryIds, diary.id])];
+      }
     });
   } else if (kind === 'v4-execute') {
     const pending = pointConfirmation;
@@ -1363,6 +1391,7 @@ async function submitV4(form, kind, id) {
     });
     pointConfirmation = null;
   }
+  if (kind === 'v4-diary') ui.diaryWishId = '';
   closeModal(); renderShell(); toastMessage('已保存');
 }
 
@@ -1383,6 +1412,89 @@ function renderHabitBoard() {
       return `<td class="${done ? 'board-done' : ''}" title="${d} · ${done ? '已完成' : !planned ? '休息或未启用' : d >= today ? '待完成' : '未完成'}">${done ? '✓' : !planned ? '—' : d >= today ? '·' : '○'}</td>`;
     }).join('')}<td>${completed} / ${goal}${lastPolicy?.mode === 'weekly' ? ' 次目标' : ' 天'}</td></tr>`;
   }).join('') || '<tr><td colspan="9">添加一个习惯后，就能在这里查看每周记录。</td></tr>'}</tbody></table></div></section>`;
+}
+
+const wishList = () => pointState().wishes || [];
+const wishStatus = { wanted: '想一起做', planned: '已计划', done: '已完成' };
+function photoAlbum(photo) {
+  const albums = pointState().albums || [];
+  return albums.find(a => a.id === photo.albumId || a.photoIds.includes(photo.id))?.id || ((photo.category || photo.group || '').trim() || '未分类');
+}
+function albumName(id) { return (pointState().albums || []).find(a => a.id === id)?.name || id; }
+function wishLinks(type, id) {
+  const matches = wishList().filter(w => type === 'city' ? w.cityId === id : type === 'album' ? w.albumId === id : w.diaryIds.includes(id));
+  return matches.length ? `<div class="feature-actions wish-links"><span>关联愿望：</span>${matches.map(w => wishButton('open', escapeHtml(w.title), w.id)).join('')}</div>` : '';
+}
+const wishButton = (action, label, id = '') => `<button type="button" class="button button-light" data-action="wish-${action}" data-id="${escapeHtml(id)}">${label}</button>`;
+function wishMapPlaces() {
+  const originals = [...(data.places || []), ...(pointState().wishCities || [])];
+  return originals.map(city => {
+    const wishes = wishList().filter(w => w.cityId === city.id && !w.archived);
+    const completed = wishList().filter(w => w.cityId === city.id && w.status === 'done');
+    return { ...city, visitedAt: city.visitedAt || completed.map(w => w.completedAt).sort()[0] || '', planned: !city.visitedAt && !completed.length, relatedWishes: wishes.map(w => ({id:w.id,title:w.title,status:wishStatus[w.status]})) };
+  }).filter(c => c.visitedAt || c.relatedWishes.length);
+}
+function albumUploadField(selected) {
+  return `<label class="field"><span>关联愿望相册（可选，选择后优先于文字分组）</span><select name="albumId"><option value="">使用下面的文字分组</option>${(pointState().albums || []).map(a => `<option value="${escapeHtml(a.id)}" ${selected === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}</select></label>`;
+}
+function wishDiaryField(diary) {
+  return `<label class="field"><span>关联愿望（可选）</span><select name="wishId"><option value="">不新增关联</option>${wishList().map(w => `<option value="${escapeHtml(w.id)}" ${w.id === ui.diaryWishId ? 'selected' : ''}>${escapeHtml(w.title)}</option>`).join('')}</select></label>`;
+}
+function renderWishes() {
+  const filter = ui.wishFilter || 'all';
+  const items = wishList().filter(w => filter === 'archived' ? w.archived : !w.archived && (filter === 'all' || w.status === filter)).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+  return `<div class="view-heading"><div><div class="eyebrow">OUR WISH LIST</div><h1>共同愿望清单</h1><p class="intro-copy">想一起做的事，慢慢变成共同的回忆。</p></div>${wishButton('edit','添加愿望')}</div><section class="panel feature-panel"><div class="v4-tabs">${Object.entries({all:'全部',...wishStatus,archived:'已归档'}).map(([id,label]) => wishButton('filter',label,id)).join('')}</div>${items.map(w => `<article class="v4-row"><div><strong>${escapeHtml(w.title)}</strong><p>${wishStatus[w.status]} · ${escapeHtml(roleName(w.creator))}${w.targetDate ? ' · 预计 '+escapeHtml(w.targetDate) : ''}</p><p>${escapeHtml(w.description)}</p></div>${wishButton('open','查看愿望',w.id)}</article>`).join('') || '<div class="empty-page"><h3>一起许下一个愿望吧</h3><p>地点和日期都可以以后再补充。</p></div>'}</section>`;
+}
+function showWish(w) {
+  const city = [...(data.places || []),...(pointState().wishCities || [])].find(c => c.id === w.cityId);
+  const diaries = pointState().diaries.filter(d => w.diaryIds.includes(d.id));
+  showModal(`<article class="form-stack wish-detail">${modalHeader(escapeHtml(w.title),'OUR WISH')}<p class="field-hint">${wishStatus[w.status]}${w.archived ? ' · 已归档' : ''}${w.targetDate ? ' · 预计 '+escapeHtml(w.targetDate) : ''}${w.completedAt ? ' · 完成于 '+escapeHtml(w.completedAt) : ''}</p><p class="wish-description">${escapeHtml(w.description)}</p><div class="feature-actions">${wishButton('edit','编辑与关联',w.id)}${w.status !== 'done' ? wishButton('complete','完成愿望',w.id) : ''}${wishButton('archive',w.archived ? '恢复愿望' : '归档',w.id)}</div><section class="wish-section"><h3>地图地点</h3><p>${escapeHtml(city?.name || '还没有关联地点')}</p><div class="feature-actions">${wishButton('city','搜索并关联城市',w.id)}${city ? wishButton('map','查看地图',w.id) : ''}</div></section><section class="wish-section"><h3>相关相册</h3><p>${w.albumId ? escapeHtml(albumName(w.albumId)) : '还没有关联相册'}</p>${w.albumId ? wishButton('photos','查看 / 上传照片',w.id) : wishButton('edit','关联或新建相册',w.id)}</section><section class="wish-section"><h3>相关日记</h3>${diaries.map(d => `<div class="v4-row"><div><strong>${escapeHtml(d.title)}</strong><p>${escapeHtml(roleName(d.owner))} · ${d.createdAt.slice(0,10)} · ${d.owner === ui.role || points.unlocked(pointState(),d.id,ui.role) ? '可阅读' : d.price+' 积分解锁'}</p></div>${v4Button(d.owner === ui.role || points.unlocked(pointState(),d.id,ui.role) ? 'read' : 'diary-confirm','打开日记',d.id)}</div>`).join('') || '<p>还没有关联日记。</p>'}<div class="feature-actions">${wishButton('diary','写一篇日记',w.id)}${wishButton('edit','关联已有日记',w.id)}</div></section></article>`);
+}
+async function wishAction({action,id}) {
+  if (action === 'wish-filter') { ui.wishFilter=id; renderShell(); return; }
+  const w=wishList().find(w=>w.id===id);
+  if (action === 'wish-edit' || action === 'wish-complete') {
+    const complete=action==='wish-complete';
+    if (complete && !w) throw new Error('愿望不存在。');
+    const categories=[...new Set((data.photos||[]).map(p=>(p.category||p.group||'').trim()||'未分类'))];
+    showModal(`<form class="form-stack" data-form="${complete ? 'wish-complete' : 'wish'}" data-id="${escapeHtml(id || makeId())}">${modalHeader(complete ? '完成愿望' : w ? '编辑愿望' : '添加共同愿望','OUR WISH LIST')}${complete ? `<label class="field"><span>完成日期</span><input name="completedAt" type="date" value="${w.completedAt||points.today()}" required /></label><p class="form-intro">保存后可以继续补充城市、照片和日记。</p>` : `${v4Field('title','愿望名称',w?.title||'')}<label class="field"><span>说明（可选）</span><textarea name="description" rows="3" maxlength="2000">${escapeHtml(w?.description||'')}</textarea></label><label class="field"><span>预计日期（可选）</span><input name="targetDate" type="date" value="${w?.targetDate||''}" /></label><label class="field"><span>状态</span><select name="status">${Object.entries(wishStatus).map(([key,label])=>`<option value="${key}" ${w?.status===key?'selected':''}>${label}</option>`).join('')}</select></label><label class="field"><span>关联城市（可选）</span><select name="cityId"><option value="">不关联</option>${[...(data.places||[]),...(pointState().wishCities||[])].map(c=>`<option value="${escapeHtml(c.id)}" ${w?.cityId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></label><label class="field"><span>关联相册</span><select name="albumId"><option value="">不关联</option><option value="new">新建愿望相册</option>${(pointState().albums||[]).map(a=>`<option value="${escapeHtml(a.id)}" ${w?.albumId===a.id?'selected':''}>${escapeHtml(a.name)}</option>`).join('')}${categories.map((c,i)=>`<option value="legacy-${i}">${escapeHtml(c)}（已有分组）</option>`).join('')}</select></label><label class="field"><span>新相册名称 / 修改已关联相册名称（可选）</span><input name="albumName" maxlength="120" value="" placeholder="新建时留空使用愿望名称；已有相册留空保留原名" /></label><fieldset class="habit-days"><legend>关联已有日记（多选，不会解锁正文）</legend>${pointState().diaries.map(d=>`<label><input type="checkbox" name="diary-${escapeHtml(d.id)}" ${w?.diaryIds.includes(d.id)?'checked':''} />${escapeHtml(roleName(d.owner))} · ${escapeHtml(d.title)}</label>`).join('')||'还没有日记'}</fieldset>`}<div class="form-actions"><button type="button" class="text-button" data-action="close-modal">取消</button><button class="button button-dark" type="submit">确认保存</button></div></form>`);return;
+  }
+  if (!w) throw new Error('愿望不存在。');
+  if (action==='wish-open') { showWish(w); return; }
+  if (action==='wish-archive') { await updatePoints(s=>{const item=s.wishes.find(x=>x.id===id);item.archived=!item.archived;item.updatedAt=isoNow();});closeModal();renderShell();return; }
+  if (action==='wish-city') { ui.cityWishId=id;showCitySearch('wish');return; }
+  if (action==='wish-diary') {ui.diaryWishId=id;await actionV4({action:'v4-diary'});return;}
+  if (action==='wish-photos') {closeModal();navigateToPhotoGroup(w.albumId);return;}
+  if (action==='wish-map') {closeModal();ui.view='map';renderShell();window.scrollTo({top:0,behavior:'instant'});return;}
+}
+async function submitWish(form,kind,id) {
+  await updatePoints(s=>{
+    const existing=s.wishes.find(w=>w.id===id);
+    if (kind==='wish-complete') {
+      if (!existing) throw new Error('愿望不存在。');
+      parseDay(form.get('completedAt'));
+      if (form.get('completedAt')>points.today()) throw new Error('完成日期不能晚于今天。');
+      Object.assign(existing,{status:'done',completedAt:form.get('completedAt'),updatedAt:isoNow()});return;
+    }
+    const title=form.get('title').trim(),status=form.get('status');
+    if (!title || !Object.hasOwn(wishStatus,status)) throw new Error('请填写名称和有效状态。');
+    const targetDate=form.get('targetDate')||'';if(targetDate)parseDay(targetDate);
+    const cityId=form.get('cityId')||'';
+    if(cityId && ![...(data.places||[]),...s.wishCities].some(c=>c.id===cityId))throw new Error('城市已不存在，请重新选择。');
+    let albumId=form.get('albumId')||'';
+    const categories=[...new Set((data.photos||[]).map(p=>(p.category||p.group||'').trim()||'未分类'))];
+    if(albumId==='new'||albumId.startsWith('legacy-')) {
+      const legacy=albumId==='new'?null:categories[Number(albumId.slice(7))];
+      if(albumId!=='new'&&legacy===undefined)throw new Error('相册分组已变化，请重新选择。');
+      let album=legacy?s.albums.find(a=>a.legacyCategory===legacy):null;
+      if(!album){album={id:makeId(),name:form.get('albumName').trim()||legacy||title,photoIds:legacy?(data.photos||[]).filter(p=>((p.category||p.group||'').trim()||'未分类')===legacy).map(p=>p.id):[],legacyCategory:legacy};s.albums.push(album);}
+      albumId=album.id;
+    }
+    if(albumId){const album=s.albums.find(a=>a.id===albumId);if(!album)throw new Error('相册不存在。');if(form.get('albumName').trim())album.name=form.get('albumName').trim();}
+    const item={id,title,description:form.get('description').trim(),targetDate,status,cityId,albumId,diaryIds:s.diaries.filter(d=>form.has(`diary-${d.id}`)).map(d=>d.id),creator:existing?.creator||ui.role,createdAt:existing?.createdAt||isoNow(),updatedAt:isoNow(),archived:existing?.archived||false,completedAt:status==='done'?(existing?.completedAt||points.today()):''};
+    s.wishes=[item,...s.wishes.filter(w=>w.id!==id)];
+  });
+  closeModal();renderShell();showWish(wishList().find(w=>w.id===id));
 }
 
 boot();
