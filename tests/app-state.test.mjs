@@ -83,7 +83,7 @@ function harness(Store = class {}, overrides = {}, initialStorage = []) {
     ui, connectGithub, syncNow, submitForm, markRead, markVisibleUnread, archiveHabit, disconnect,
     renderShell, unreadCount, saveProfileSettings, whisperRow, moodFor, autoConnect, uploadPhoto, loadVisiblePhotos,
     answerTreehole, showTreeholePrompt, treeholeStatus, refreshWeather, renderTreeholesPage, showSettings,
-    photoUrls, photoLoads, resetDemo, handleAction, showAnniversaryForm,
+    photoUrls, photoLoads, resetDemo, handleAction, showAnniversaryForm, renderDashboard, removeAnniversary,
     renderHabitBoard, renderRewardTickets, pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
     get weather() { return weatherCache; }
   };`, context, { filename: 'app.js' });
@@ -417,6 +417,64 @@ test('new mood history retains only the previous 48 hours and preserves the last
   await app.submitForm(form({ key: 'miss', note: 'new' }, 'mood'));
   assert.deepEqual(clone(app.data.moods.me.history).map(item => item.note), ['new', 'recent']);
   assert.equal(app.data.moods.me._sha, 'mood-v2');
+});
+
+test('home companionship days use only the relationship start despite other anniversary ordering', () => {
+  const { app } = harness();
+  app.data = state();
+  const today = dates.dateKey();
+  const target = { id: 'start', title: '在一起的日子', date: '2024-02-29' };
+  app.data.anniversaries = [
+    { id: 'met', title: '相识的日子', date: today },
+    { id: 'trip', title: '在一起第一次旅行', date: today },
+    { id: 'love', title: '相恋周年', date: today }, target
+  ];
+  const expected = `相伴 ${dates.daysBetween(target.date, today)} 天`;
+  assert.ok(app.renderDashboard().includes(expected));
+  app.data.anniversaries.reverse();
+  assert.ok(app.renderDashboard().includes(expected));
+});
+
+test('saving and renaming the relationship anniversary preserves its binding and updated date', async () => {
+  const { app, nodes } = harness(); app.data = state();
+  app.data.anniversaries = [{ id: 'start', title: '在一起的日子', date: '2024-02-29', _sha: 'old' }];
+  app.remote = { async save(folder, item) {
+    assert.equal(folder, 'anniversaries');
+    assert.equal(item._sha, 'old');
+    assert.equal(item.isRelationshipStart, true);
+    return { ...item, _sha: 'new' };
+  } };
+  const edit = form({ title: '我们的开始', date: '2024-03-01' }, 'anniversary'); edit.dataset.id = 'start';
+  await app.submitForm(edit);
+  assert.equal(app.data.anniversaries[0].isRelationshipStart, true);
+  app.data.anniversaries.unshift({ id: 'met', title: '相识的日子', date: dates.dateKey() });
+  assert.ok(app.renderDashboard().includes(`相伴 ${dates.daysBetween('2024-03-01', dates.dateKey())} 天`));
+  app.showAnniversaryForm('start');
+  assert.match(nodes.get('#modal-content').innerHTML, /修改名称不会解除绑定/);
+});
+
+test('missing, future or deleted relationship start never falls back to another anniversary', async () => {
+  const { app } = harness(); app.data = state();
+  app.data.anniversaries = [{ id: 'met', title: '相识', date: '2020-01-01' }];
+  assert.doesNotMatch(app.renderDashboard(), /相伴 \d+ 天/);
+  app.data.anniversaries.push({ id: 'start', title: '在一起的日子', date: '9999-01-01' });
+  assert.doesNotMatch(app.renderDashboard(), /相伴 -?\d+ 天/);
+  app.data.anniversaries[1].date = dates.dateKey();
+  assert.match(app.renderDashboard(), /相伴 0 天/);
+  await app.removeAnniversary('start');
+  assert.doesNotMatch(app.renderDashboard(), /相伴 \d+ 天/);
+});
+
+test('a duplicate relationship start cannot silently replace the existing binding', async () => {
+  const { app, nodes } = harness(); app.data = state();
+  app.data.anniversaries = [{ id: 'start', title: '我们的开始', date: '2024-02-29', isRelationshipStart: true }];
+  const before = clone(app.data.anniversaries);
+  let saves = 0;
+  app.remote = { async save() { saves++; } };
+  await app.submitForm(form({ title: '在一起的日子', date: dates.dateKey() }, 'anniversary'));
+  assert.match(nodes.get('#toast').textContent, /请编辑原记录/);
+  assert.equal(saves, 0);
+  assert.deepEqual(clone(app.data.anniversaries), before);
 });
 
 test('anniversary editor omits annual repetition and removes the legacy flag when saved', async () => {

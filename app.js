@@ -316,6 +316,13 @@ function renderView() {
   return renderDashboard();
 }
 
+function relationshipStartAnniversary() {
+  const records = data.anniversaries || [];
+  // Legacy data has no binding flag. Only the exact original title identifies it.
+  return records.find((item) => item.isRelationshipStart === true)
+    || records.find((item) => item.title.trim() === '在一起的日子');
+}
+
 function renderDashboard() {
   const ann = firstAnniversary();
   const other = counterpartRole();
@@ -325,7 +332,8 @@ function renderDashboard() {
   const myMood = moodFor(ui.role);
   const unreads = unreadCount();
   const next = ann ? nextAnniversary(ann) : null;
-  const elapsed = data.anniversaries.find((a) => a.date <= dateKey() && /在一起|相恋|相识/.test(a.title));
+  const relationshipStart = relationshipStartAnniversary();
+  const elapsed = relationshipStart?.date <= dateKey() ? relationshipStart : null;
   const englishDate = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase();
   const activeHabits = allHabits().filter((h) => h.active);
   const myHabits = activeHabits.filter((h) => h.owner === ui.role);
@@ -670,7 +678,7 @@ function modalHeader(title, kicker = "BETWEEN US") {
 
 function showAnniversaryForm(id = "") {
   const item = (data.anniversaries || []).find((a) => a.id === id);
-  showModal(`<form class="form-stack" data-form="anniversary" data-id="${escapeHtml(id)}">${modalHeader(item ? "编辑纪念日" : "记住一个日子", "IMPORTANT DAYS")}<label class="field"><span>日子的名字</span><input name="title" maxlength="60" placeholder="例如：我们在一起" value="${escapeHtml(item?.title || "")}" required /></label><label class="field"><span>日期</span><input name="date" type="date" value="${escapeHtml(item?.date || dateKey())}" required /></label><div class="form-actions">${item ? `<button type="button" class="text-button danger-link" data-action="delete-anniversary" data-id="${escapeHtml(item.id)}">删除纪念日</button>` : `<span></span>`}<button class="button button-dark" type="submit">${item ? "保存修改" : "保存这个日子"}</button></div></form>`);
+  showModal(`<form class="form-stack" data-form="anniversary" data-id="${escapeHtml(id)}">${modalHeader(item ? "编辑纪念日" : "记住一个日子", "IMPORTANT DAYS")}${item && relationshipStartAnniversary()?.id === item.id ? `<p class="field-hint">此日期用于首页的相伴天数，修改名称不会解除绑定。</p>` : ""}<label class="field"><span>日子的名字</span><input name="title" maxlength="60" placeholder="例如：在一起的日子" value="${escapeHtml(item?.title || "")}" required /></label><label class="field"><span>日期</span><input name="date" type="date" value="${escapeHtml(item?.date || dateKey())}" required /></label><div class="form-actions">${item ? `<button type="button" class="text-button danger-link" data-action="delete-anniversary" data-id="${escapeHtml(item.id)}">删除纪念日</button>` : `<span></span>`}<button class="button button-dark" type="submit">${item ? "保存修改" : "保存这个日子"}</button></div></form>`);
 }
 
 function showMoodForm() {
@@ -996,6 +1004,11 @@ async function submitForm(formElement, intent = 'profile') {
       const id = formElement.dataset.id || makeId();
       const existing = data.anniversaries.find((a) => a.id === id);
       const item = { ...(existing || {}), id, title: form.get("title").trim(), date: form.get("date"), updatedAt: isoNow() };
+      const bound = relationshipStartAnniversary();
+      if (bound?.id === id || item.title === '在一起的日子') {
+        if (bound && bound.id !== id) throw new Error('已有“在一起的日子”，请编辑原记录来修改相伴起始日期。');
+        item.isRelationshipStart = true;
+      }
       delete item.repeatYearly;
       if (!item.title) throw new Error('请填写纪念日名称。');
       parseDay(item.date);
