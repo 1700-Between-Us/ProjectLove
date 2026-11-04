@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#dceeff" />
+    <meta name="theme-color" content="#fff1f6" />
     <meta name="description" content="一份属于两个人的日常。" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.github.com https://geocoding-api.open-meteo.com https://api.open-meteo.com; manifest-src 'self'; base-uri 'self'; form-action 'self'" />
     <link rel="icon" type="image/svg+xml" href="./couple-mark.svg" />
@@ -14,6 +14,7 @@
     <title>两地之间</title>
   </head>
   <body>
+    <div class="ambient-bubbles" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div id="app" aria-live="polite"></div>
     <dialog id="modal" class="modal" aria-labelledby="modal-title">
       <div id="modal-content"></div>

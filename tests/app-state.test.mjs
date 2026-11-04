@@ -554,24 +554,16 @@ test('locked diaries omit body from rendered HTML and reading requires redemptio
   assert.match(nodes.get('#modal-content').innerHTML, /PRIVATE_BODY/);
 });
 
-test('perspective toggle persists role, clears drafts, and updates diary ownership', async () => {
+test('removed perspective switch cannot change the device role or expose partner diary', async () => {
   const { app, storage, nodes } = harness();
-  app.data = state(); app.ui.role = 'me'; app.ui.view = 'diary'; app.ui.draft = 'unsent';
+  app.data = state(); app.ui.role = 'me'; app.ui.view = 'diary';
   const wallet = points.empty();
   wallet.diaries.push({ id: 'note', owner: 'partner', title: '日记', content: '秘密正文', price: 10, createdAt: '2026-11-01T00:00:00Z' });
-  app.data.points = [wallet];
-  app.renderShell();
-  assert.match(nodes.get('#app').innerHTML, /切换至小林视角/);
-  assert.doesNotMatch(app.renderDiary(), /v4-read/);
-  await app.handleAction({ dataset: { action: 'switch-role' } });
-  assert.equal(app.ui.role, 'partner');
-  assert.equal(app.ui.draft, '');
-  assert.equal(storage.get('between-us-role-v1'), 'partner');
-  assert.match(app.renderDiary(), /v4-read/);
-  assert.match(nodes.get('#app').innerHTML, /切换至阿汐视角/);
+  app.data.points = [wallet]; app.renderShell();
+  assert.doesNotMatch(nodes.get('#app').innerHTML, /switch-role|role-button/);
   await app.handleAction({ dataset: { action: 'switch-role' } });
   assert.equal(app.ui.role, 'me');
-  assert.equal(storage.get('between-us-role-v1'), 'me');
+  assert.equal(storage.get('between-us-role-v1'), undefined);
   assert.doesNotMatch(app.renderDiary(), /v4-read/);
 });
 

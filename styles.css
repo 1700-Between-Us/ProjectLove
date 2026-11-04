@@ -74,8 +74,8 @@ svg { flex: 0 0 auto; }
 .icon-button { display: inline-grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #7a827b; transition: background .15s, color .15s, border-color .15s; }
 .icon-button:hover { border-color: #e7e9e3; background: #fff; color: var(--forest); }
 .icon-button.small { width: 30px; height: 30px; }
-.role-button { display: flex; min-height: 35px; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid #e8eae5; border-radius: 4px; background: #fff; color: #555f58; font-size: 11px; }
-.role-button:hover { border-color: #bac9bd; }
+
+
 .down-caret { color: #9ba19c; font-size: 15px; }
 .spinning svg { animation: rotate 1s linear infinite; }
 @keyframes rotate { to { transform: rotate(360deg); } }
@@ -399,7 +399,7 @@ button.mood-person:hover .mood-avatar { transform: scale(1.04); }
   .crumb span:first-child { max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .crumb-dot, .sync-label { display: none; }
   .top-actions { gap: 2px; }
-  .role-button { min-height: 32px; gap: 5px; padding: 0 6px; font-size: 9px; }
+
   .role-stack .avatar { width: 19px; height: 19px; font-size: 8px; }
   .role-stack .avatar + .avatar { margin-left: -7px; }
   .icon-button { width: 32px; height: 32px; }
@@ -485,7 +485,7 @@ button.mood-person:hover .mood-avatar { transform: scale(1.04); }
   .toast { right: 12px; bottom: calc(73px + env(safe-area-inset-bottom)); }
 }
 
-/* Blue oil-paint theme: layered brush-like gradients keep the page light while adding a hand-painted paper texture. */
+/* Shared blue accents; V5 uses a soft pink light background below. */
 :root {
   --ink: #17365d;
   --muted: #56728e;
@@ -501,25 +501,50 @@ button.mood-person:hover .mood-avatar { transform: scale(1.04); }
   --shadow: 0 16px 44px rgba(37, 81, 122, .10);
 }
 
-html, body { background: #dceeff; }
+html, body { background: #fff1f6; }
 body {
   color: var(--ink);
   background-image:
-    radial-gradient(circle at 12% 9%, rgba(255,255,255,.7), transparent 32%),
-    radial-gradient(circle at 88% 84%, rgba(111,177,224,.18), transparent 36%),
-    repeating-linear-gradient(112deg, rgba(255,255,255,.18) 0 2px, transparent 2px 13px),
-    repeating-linear-gradient(22deg, rgba(35,101,153,.045) 0 1px, transparent 1px 17px);
-  background-size: 100% 100%, 100% 100%, 150px 190px, 190px 160px;
+    radial-gradient(ellipse at 10% 2%, rgba(255,255,255,.96), transparent 47%),
+    radial-gradient(ellipse at 88% 14%, rgba(245,177,204,.38), transparent 48%),
+    radial-gradient(ellipse at 26% 82%, rgba(249,195,217,.40), transparent 52%),
+    linear-gradient(145deg, rgba(255,244,248,.55), rgba(248,218,232,.38) 52%, rgba(255,252,253,.82));
+  background-attachment: fixed;
+}
+.ambient-bubbles { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+.ambient-bubbles::before { position: absolute; inset: 0; background: radial-gradient(ellipse at 65% 30%, rgba(255,255,255,.7), transparent 44%), linear-gradient(125deg, transparent 30%, rgba(255,255,255,.28) 48%, transparent 67%); content: ""; }
+.ambient-bubbles span { position: absolute; bottom: -180px; left: var(--x); width: var(--size); aspect-ratio: 1; border: 1px solid rgba(232,154,186,.35); border-radius: 50%; background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.88), rgba(255,225,237,.22) 34%, rgba(243,180,208,.14) 65%, rgba(255,255,255,.42)); box-shadow: inset 0 0 20px rgba(255,255,255,.5), 0 8px 28px rgba(192,115,150,.07); opacity: 0; animation: bubble-rise var(--duration) linear infinite; animation-delay: var(--delay); }
+.ambient-bubbles span:nth-child(1) { --x: 4%; --size: 74px; --duration: 24s; --delay: -4s; --drift: 35px; --rest: 12%; }
+.ambient-bubbles span:nth-child(2) { --x: 15%; --size: 120px; --duration: 32s; --delay: -19s; --drift: -24px; --rest: 58%; }
+.ambient-bubbles span:nth-child(3) { --x: 26%; --size: 48px; --duration: 21s; --delay: -11s; --drift: 38px; --rest: 30%; }
+.ambient-bubbles span:nth-child(4) { --x: 37%; --size: 96px; --duration: 29s; --delay: -2s; --drift: -40px; --rest: 73%; }
+.ambient-bubbles span:nth-child(5) { --x: 48%; --size: 62px; --duration: 26s; --delay: -17s; --drift: 28px; --rest: 40%; }
+.ambient-bubbles span:nth-child(6) { --x: 59%; --size: 142px; --duration: 36s; --delay: -25s; --drift: -30px; --rest: 7%; }
+.ambient-bubbles span:nth-child(7) { --x: 69%; --size: 84px; --duration: 28s; --delay: -8s; --drift: 35px; --rest: 65%; }
+.ambient-bubbles span:nth-child(8) { --x: 80%; --size: 110px; --duration: 31s; --delay: -22s; --drift: -46px; --rest: 25%; }
+.ambient-bubbles span:nth-child(9) { --x: 91%; --size: 58px; --duration: 23s; --delay: -13s; --drift: -24px; --rest: 48%; }
+.ambient-bubbles span:nth-child(10) { --x: 53%; --size: 42px; --duration: 20s; --delay: -6s; --drift: 20px; --rest: 82%; }
+@keyframes bubble-rise {
+  0% { transform: translate3d(0,0,0) scale(.18); opacity: 0; }
+  12% { opacity: .5; }
+  70% { opacity: .34; }
+  100% { transform: translate3d(var(--drift), calc(-100vh - 360px), 0) scale(1.45); opacity: 0; }
+}
+@media (max-width: 640px) {
+  .ambient-bubbles span:nth-child(n+7) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-bubbles span { animation: none; bottom: var(--rest); transform: scale(.7); opacity: .16; }
 }
 #app { position: relative; z-index: 1; }
 .sidebar {
   border-right-color: #bed8ec;
-  background-color: rgba(244, 251, 255, .93);
+  background-color: rgba(255, 247, 251, .9);
   background-image: repeating-linear-gradient(118deg, rgba(255,255,255,.28) 0 2px, transparent 2px 14px);
 }
 .topbar {
   border-bottom-color: #bfd8ec;
-  background-color: rgba(239, 249, 255, .90);
+  background-color: rgba(255, 247, 251, .88);
 }
 .nav-item { color: #5b7895; }
 .nav-item:hover { background: #e8f4ff; color: var(--ink); }
@@ -535,8 +560,8 @@ body {
 .avatar-partner { background: #9bc9ec; color: #214e7e; }
 .icon-button { color: #527798; }
 .icon-button:hover { border-color: #b6d4eb; background: #f7fcff; color: var(--forest); }
-.role-button { border-color: #bfd8ec; background: #f8fcff; color: #355f84; }
-.role-button:hover { border-color: #80b5dd; }
+
+
 .crumb, .intro-copy { color: #5d7893; }
 .crumb-dot { background: #89b8dc; }
 .sync-label i { background: #83b8de; }
@@ -571,7 +596,7 @@ body {
 .city-sun { background: #b8e1fb; box-shadow: 0 0 21px rgba(184, 225, 251, .35); }
 .distance-heart { border-color: rgba(190, 226, 248, .55); background: #28649b; color: #def2ff; }
 .art-caption { color: rgba(219, 240, 255, .72); }
-.panel { border-color: #c4daeb; background-color: rgba(248, 252, 255, .92); background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.14) 0 2px, transparent 2px 18px); }
+.panel { border-color: #c4daeb; background-color: rgba(255, 252, 254, .84); background-image: none; }
 .section-mark { background: #e5f3fd; color: #397bb1; }
 .mark-coral, .mark-mint, .mark-lilac, .mark-blue, .mark-yellow { background: #e5f3fd; color: #397bb1; }
 .anniversary-date { border-color: #c7deef; background: #eff8fe; }
@@ -589,7 +614,7 @@ body {
 .mood-copy > span { color: #63839d; }
 .weather-symbol { color: #4b91c6; }
 .weather-desc, .weather-range, .weather-foot { color: #6887a0; }
-.feature-panel, .letterbook { border-color: #c4daeb; background-color: rgba(248,252,255,.92); }
+.feature-panel, .letterbook { border-color: #c4daeb; background-color: rgba(255,252,254,.88); }
 .feature-row { border-top-color: #d5e6f1; }
 .feature-row time, .feature-row small { color: #6385a1; }
 .feature-row p, .treehole-content { color: #254d72; }
@@ -615,7 +640,7 @@ body {
 
 @media (max-width: 375px) {
   .crumb span:first-child { max-width: 95px; }
-  .role-button > span:nth-child(2) { max-width: 77px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   .page-content { padding-right: 11px; padding-left: 11px; }
   .view-heading h1 { font-size: 20px; }
   .experience-badge { display: none; }
@@ -634,7 +659,7 @@ body {
 .points-content .panel-kicker, .habit-summary .panel-kicker { font-size: 10px; }
 .section-title h2, .points-content h2 { font-size: 15px; }
 .intro-copy, .nav-item { font-size: 13px; }
-.button, .small-button, .text-button, .role-button, .footer-settings { font-size: 12px; }
+.button, .small-button, .text-button, .footer-settings { font-size: 12px; }
 .account-copy strong, .anniversary-info > strong, .group-heading h2 { font-size: 13px; }
 .crumb, .experience-badge, .account-copy small, .anniversary-info > span,
 .anniversary-info small, .anniversary-footer > span, .unread-caption,
@@ -756,7 +781,7 @@ body {
 @media (max-width: 640px) {
   .view-heading { flex-wrap: wrap; }
   .heading-actions { flex-direction: row; align-items: center; margin-left: auto; }
-  .heading-actions .button, .role-button { font-size: 11px; }
+  .heading-actions .button { font-size: 11px; }
   .eyebrow, .experience-badge { font-size: 10px; }
   .crumb { font-size: 12px; }
   .intro-copy { font-size: 12px; }
