@@ -1,3 +1,4 @@
+import * as points from '../points.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -70,9 +71,9 @@ function harness(Store = class {}, overrides = {}, initialStorage = []) {
     has(key) { return Object.hasOwn(this.fields, key); }
   }
   const context = vm.createContext({
-    ...dates, ...v2, mountCityMap() {}, unmountCityMap() {}, compressPhoto: async () => ({ base64: 'AQID', mime: 'image/webp', size: 3, width: 1, height: 1 }), GithubStore: Store, document, window: { addEventListener() {} }, navigator: {},
+    ...dates, ...v2, points, mountCityMap() {}, unmountCityMap() {}, compressPhoto: async () => ({ base64: 'AQID', mime: 'image/webp', size: 3, width: 1, height: 1 }), GithubStore: Store, document, window: { addEventListener() {} }, navigator: {},
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key) },
-    FormData: FormDataDouble, crypto: { randomUUID }, URL, URLSearchParams, AbortSignal, Blob,
+    structuredClone, FormData: FormDataDouble, crypto: { randomUUID }, URL, URLSearchParams, AbortSignal, Blob,
     fetch: async () => ({ ok: false }), confirm: () => true,
     setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, console, ...overrides
   });
@@ -83,6 +84,7 @@ function harness(Store = class {}, overrides = {}, initialStorage = []) {
     renderShell, unreadCount, saveProfileSettings, whisperRow, moodFor, autoConnect, uploadPhoto, loadVisiblePhotos,
     answerTreehole, showTreeholePrompt, treeholeStatus, refreshWeather, renderTreeholesPage, showSettings,
     photoUrls, photoLoads, resetDemo, handleAction, showAnniversaryForm,
+    pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
     get weather() { return weatherCache; }
   };`, context, { filename: 'app.js' });
   return { app: context.__appTest, nodes, storage, listeners, document };
@@ -509,4 +511,43 @@ test('explicit navigation resets scroll without moving the page on background re
   assert.deepEqual(scrolls, [{ top: 0, left: 0, behavior: 'instant' }]);
   app.renderShell();
   assert.equal(scrolls.length, 1);
+});
+
+test('V4 failed save preserves balances, unlocks and habits together', async () => {
+  const { app } = harness(); app.data = state();
+  app.remote = { save: async () => { throw new Error('conflict'); } };
+  await assert.rejects(app.updatePoints(s => { s.rules.push({id:'test',kind:'gain',name:'test',reason:'test',value:5,active:true}); }), /conflict/);
+  assert.equal(app.pointState().rules.length, 0);
+});
+test('V4 manual points require confirmation and preserve balances on cancellation', async () => {
+  const { app, nodes } = harness(); app.data = state();
+  await app.submitV4(form({ kind:'gain', name:'表达爱意', reason:'主动说想你', value:'10', active:'true' }), 'v4-rule', 'affection');
+  await app.actionV4({ action:'v4-confirm', id:'affection' });
+  assert.match(nodes.get('#modal-content').innerHTML, /确认积分操作/);
+  assert.equal(points.balance(app.pointState(), 'me'), 0);
+  const confirmation = nodes.get('#modal-content').innerHTML.match(/data-form="v4-execute" data-id="([^"]+)"/)[1];
+  await app.submitV4(form({owner:'me'}), 'v4-execute', confirmation);
+  assert.equal(points.balance(app.pointState(), 'me'), 10);
+  await assert.rejects(app.submitV4(form({owner:'me'}), 'v4-execute', confirmation), /失效/);
+  assert.equal(points.balance(app.pointState(), 'me'), 10);
+});
+test('V4 habits migrate existing completion without awarding retroactive points', async () => {
+  const { app } = harness(); app.data = state();
+  app.data.habits.push({id:'walk',name:'散步',owner:'me',active:true});
+  app.data.checkins.push({id:'legacy',habitId:'walk',owner:'me',date:points.today()});
+  await app.submitForm({...form({name:'散步',owner:'me',gain:'5',loss:'3',active:'true'},'habit'),dataset:{form:'habit',id:'walk'}});
+  assert.equal(app.allHabits().length, 1); assert.equal(app.allCheckins().length, 1);
+  assert.equal(points.balance(app.pointState(), 'me'), 0);
+  await app.toggleCheckin('walk');
+  assert.equal(app.allCheckins().length, 0);
+});
+test('locked diaries omit body from rendered HTML and reading requires redemption', async () => {
+  const { app, nodes } = harness(); app.data = state();
+  const s = points.empty(); s.diaries.push({id:'letter',owner:'partner',title:'礼物',content:'PRIVATE_BODY',price:20,createdAt:'2026-11-01T00:00:00Z'}); app.data.points=[s];
+  assert.doesNotMatch(app.renderDiary(), /PRIVATE_BODY/);
+  await assert.rejects(app.actionV4({action:'v4-read',id:'letter'}), /解锁/);
+  points.entry(s,{id:'seed',owner:'me',actor:'me',amount:20,reason:'test',source:'rule:test'});
+  points.redeem(s,'letter','me','buy');
+  await app.actionV4({action:'v4-read',id:'letter'});
+  assert.match(nodes.get('#modal-content').innerHTML, /PRIVATE_BODY/);
 });

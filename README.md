@@ -552,3 +552,5 @@ Edge：
 `app.js` 管理页面、交互和数据状态；`github-store.mjs` 封装 GitHub 与图片存取；`date-utils.mjs` 处理日期和连续打卡；`v2-utils.mjs` 处理心情历史、坐标、距离与图片校验；`image-utils.mjs` 处理浏览器图片压缩；`city-map.mjs` 使用本地 `vendor/leaflet/` 绘制地图；`styles.css` 管理响应式界面；`sw.js` 仅缓存公开资源；`tests/` 包含日期、同步、竞态、数据隔离、图片和 PWA 测试。
 
 第三版先等待你们敲定奖励 / 积分规则；本版仍只预留入口。真正的账号密码、推送、可靠离线写入均未在本版承诺或实现。
+
+V4 新增独立积分与 LoveDiary 模块，支持可复用加扣分项目、二次确认、习惯自动结算和积分兑换日记。使用规则及兼容说明见 [V4 使用说明](docs/v4.md)。

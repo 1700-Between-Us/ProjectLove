@@ -1,8 +1,9 @@
+import { valid as validPoints } from './points.mjs';
 import { PHOTO_MAX_BYTES, PHOTO_TYPES, photoPath, validCoordinates } from './v2-utils.mjs';
 import { parseDay } from './date-utils.mjs';
 
 const ROOT = 'couple-data';
-const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles', 'places', 'treeholes', 'photos'];
+const FOLDERS = ['anniversaries', 'whispers', 'habits', 'checkins', 'moods', 'profiles', 'places', 'treeholes', 'photos', 'points'];
 const ROLES = ['me', 'partner'];
 const cloneRecord = value => JSON.parse(JSON.stringify(value));
 const validDay = value => { try { parseDay(value); return true; } catch { return false; } };
@@ -27,6 +28,7 @@ function decodeJson(content) {
 
 function validateRecord(folder, value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (folder === 'points') return validPoints(value);
   if (folder === 'profiles') return ROLES.includes(value.role) && typeof value.name === 'string' && typeof value.city === 'string' && (!value.location || validCoordinates(value.location));
   if (folder === 'moods') return ROLES.includes(value.role) && typeof value.key === 'string' && (!value.history || (Array.isArray(value.history) && value.history.every(entry => entry && typeof entry.key === 'string' && typeof entry.note === 'string' && validTime(entry.setAt))));
   if (typeof value.id !== 'string' || !/^[\w-]+$/.test(value.id)) return false;
@@ -115,7 +117,7 @@ export class GithubStore {
     if (!Array.isArray(tree?.tree)) throw new Error('GitHub 目录响应不完整，已保留当前数据。');
     if (tree.truncated) throw new Error('仓库过大，目录读取不完整，已保留当前数据。');
     const paths = tree.tree.filter((item) => item.type === 'blob' && new RegExp(`^${ROOT}/(${FOLDERS.join('|')})/[^/]+\\.json$`).test(item.path));
-    const loaded = { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {}, places: [], treeholes: [], photos: [] };
+    const loaded = { anniversaries: [], whispers: [], habits: [], checkins: [], moods: {}, profiles: {}, places: [], treeholes: [], photos: [], points: [] };
     let index = 0;
     const records = new Array(paths.length);
     await Promise.all(Array.from({ length: Math.min(4, paths.length) }, async () => {

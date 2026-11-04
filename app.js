@@ -1,3 +1,4 @@
+import * as points from './points.mjs';
 import { GithubStore } from './github-store.mjs';
 import { dateKey, daysBetween, nextAnniversary, streakCountFor, parseDay } from './date-utils.mjs';
 import { anniversaryText, recentMoods, distanceKm, validCoordinates, PHOTO_LIMIT, photoPath } from './v2-utils.mjs';
@@ -69,7 +70,7 @@ const icon = (name, size = 18) => {
 };
 
 function emptyState() {
-  return { anniversaries: [], whispers: [], moods: {}, habits: [], checkins: [], profiles: {}, places: [], treeholes: [], photos: [], weather: null };
+  return { anniversaries: [], whispers: [], moods: {}, habits: [], checkins: [], profiles: {}, places: [], treeholes: [], photos: [], points: [], weather: null };
 }
 
 function demoState() {
@@ -105,7 +106,7 @@ function demoState() {
       me: { name: "阿汐", city: "杭州", timezone: "Asia/Shanghai", updatedAt: isoNow() },
       partner: { name: "小林", city: "成都", timezone: "Asia/Shanghai", updatedAt: isoNow() }
     },
-    places: [], treeholes: [], photos: [], weather: null
+    places: [], treeholes: [], photos: [], points: [], weather: null
   };
 }
 
@@ -215,15 +216,18 @@ function weekStart() {
   return d;
 }
 function weeklyCount(habitId) {
-  const start = dateKey(weekStart());
-  return (data.checkins || []).filter((c) => c.habitId === habitId && c.date >= start && !c.deletedAt).length;
+  const monday = parseDay(points.today());
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  const start = monday.toISOString().slice(0, 10);
+  return allCheckins().filter((c) => c.habitId === habitId && c.date >= start && !c.deletedAt).length;
 }
 function streakCount(habitId) {
-  return streakCountFor(data.checkins || [], habitId);
+  return streakCountFor(allCheckins(), habitId, points.today());
 }
-function didCheckIn(habitId) { return (data.checkins || []).some((c) => c.habitId === habitId && c.date === dateKey() && !c.deletedAt); }
+function didCheckIn(habitId) { return allCheckins().some((c) => c.habitId === habitId && c.date === points.today() && !c.deletedAt); }
 
 function renderShell() {
+  scheduleSettlement();
   const context = `${connectionVersion}:${ui.role}:${ui.view}`;
   // Reuse the live form so background updates preserve text and selected Files.
   const draftForm = context === renderedContext ? app.querySelector('form.inline-form') : null;
@@ -247,6 +251,8 @@ function renderShell() {
           ${navItem("home", "今天", "home")}
           ${navItem("whispers", "悄悄话", "message", unread)}
           ${navItem("habits", "好习惯", "check")}
+          ${navItem("points", "积分", "spark")}
+          ${navItem("diary", "LoveDiary", "heart")}
           ${navItem("treeholes", "树洞", "heart")}
           ${navItem("map", "地图", "pin")}
           ${navItem("photos", "照片", "spark")}
@@ -275,7 +281,8 @@ function renderShell() {
         <section class="page-content">${renderView()}</section>
       </main>
       <nav class="mobile-nav" aria-label="底部导航">
-        ${navItem("home", "今天", "home")}${navItem("treeholes", "树洞", "heart")}${navItem("map", "地图", "pin")}${navItem("photos", "照片", "spark")}
+        ${navItem("home", "今天", "home")}${navItem("habits", "习惯", "check")}${navItem("points", "积分", "spark")}${navItem("diary", "日记", "heart")}
+        ${navItem("treeholes", "树洞", "heart")}${navItem("map", "地图", "pin")}${navItem("photos", "照片", "spark")}
         <button class="nav-item ${ui.view === "settings" ? "active" : ""}" data-action="settings"><span class="nav-icon">${icon("settings")}</span><span>设置</span></button>
       </nav>
     </div>`;
@@ -296,6 +303,8 @@ function renderShell() {
 }
 
 function renderView() {
+  if (ui.view === "points") return renderPoints();
+  if (ui.view === "diary") return renderDiary();
   if (ui.view === "whispers") return renderWhispersPage();
   if (ui.view === "habits") return renderHabitsPage();
   if (ui.view === "treeholes") return renderTreeholesPage();
@@ -315,7 +324,7 @@ function renderDashboard() {
   const next = ann ? nextAnniversary(ann) : null;
   const elapsed = data.anniversaries.find((a) => a.date <= dateKey() && /在一起|相恋|相识/.test(a.title));
   const englishDate = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase();
-  const activeHabits = (data.habits || []).filter((h) => h.active);
+  const activeHabits = allHabits().filter((h) => h.active);
   const myHabits = activeHabits.filter((h) => h.owner === ui.role);
   const recentWhispers = [...(data.whispers || [])].filter((m) => !m.deletedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
   const weather = ui.weatherBusy ? `<div class="weather-loading"><span class="loader"></span><span>正在看 ${escapeHtml(partnerProfile.city || "对方城市")} 的天气</span></div>` : ui.weatherError ? `<div class="weather-empty"><span>${icon("cloud", 23)}</span><p>${escapeHtml(ui.weatherError)}</p><button class="text-button" data-action="weather">重试</button></div>` : weatherCache ? `<div class="weather-now"><span class="weather-symbol">${weatherIcon(weatherCache.code)}</span><div><div class="temperature">${Math.round(weatherCache.temperature)}<span>°</span></div><div class="weather-desc">${escapeHtml(weatherText[weatherCache.code] || "天气未知")} · 体感 ${Math.round(weatherCache.apparent)}°</div></div><div class="weather-range"><span>今日</span><strong>${Math.round(weatherCache.max)}° <i>/</i> ${Math.round(weatherCache.min)}°</strong></div></div>` : `<div class="weather-empty"><span>${icon("cloud", 23)}</span><p>设置城市后查看天气</p><button class="text-button" data-action="settings">设置城市</button></div>`;
@@ -404,16 +413,16 @@ function renderWhispersPage() {
 function habitRow(habit, compact = false) {
   const done = didCheckIn(habit.id);
   const owner = habit.owner;
-  const completeControl = owner === ui.role ? `<button class="check-toggle ${done ? "checked" : ""}" data-action="toggle-checkin" data-id="${escapeHtml(habit.id)}" aria-label="${done ? "取消今天的打卡" : "完成今天的打卡"}" title="${done ? "今天已完成" : "完成今天的打卡"}">${done ? icon("check", 16) : ""}</button>` : `<span class="check-toggle other-check ${done ? "checked" : ""}" aria-label="${done ? "今天已打卡" : "尚未打卡"}">${done ? icon("check", 16) : ""}</span>`;
-  return `<article class="habit-row ${done ? "is-done" : ""} ${compact ? "compact" : ""}">${completeControl}<div class="habit-title"><strong>${escapeHtml(habit.name)}</strong><span>${escapeHtml(roleName(owner))} · 连续 ${streakCount(habit.id)} 天</span></div><div class="habit-week"><span>${weeklyCount(habit.id)}<small>本周</small></span></div>${!compact ? `<button class="icon-button small habit-edit" data-action="edit-habit" data-id="${escapeHtml(habit.id)}" title="编辑习惯" aria-label="编辑习惯">${icon("edit", 15)}</button>` : ""}</article>`;
+  const completeControl = owner === ui.role && habit.active ? `<button class="check-toggle ${done ? "checked" : ""}" data-action="toggle-checkin" data-id="${escapeHtml(habit.id)}" aria-label="${done ? "取消今天的打卡" : "完成今天的打卡"}" title="${done ? "今天已完成" : "完成今天的打卡"}">${done ? icon("check", 16) : ""}</button>` : `<span class="check-toggle other-check ${done ? "checked" : ""}" aria-label="${done ? "今天已打卡" : "尚未打卡"}">${done ? icon("check", 16) : ""}</span>`;
+  return `<article class="habit-row ${done ? "is-done" : ""} ${compact ? "compact" : ""}">${completeControl}<div class="habit-title"><strong>${escapeHtml(habit.name)}</strong><span>${habit.active ? "启用" : "已停用"} · ${escapeHtml(roleName(owner))} · 连续 ${streakCount(habit.id)} 天</span></div><div class="habit-week"><span>${weeklyCount(habit.id)}<small>本周</small></span></div>${!compact ? `<button class="icon-button small habit-edit" data-action="edit-habit" data-id="${escapeHtml(habit.id)}" title="编辑习惯" aria-label="编辑习惯">${icon("edit", 15)}</button>` : ""}</article>`;
 }
 
 function renderHabitsPage() {
-  const active = (data.habits || []).filter((h) => h.active);
+  const active = allHabits();
   const mine = active.filter((h) => h.owner === ui.role);
   const theirs = active.filter((h) => h.owner === counterpartRole());
-  const total = active.length;
-  const complete = active.filter((h) => didCheckIn(h.id)).length;
+  const total = active.filter(h => h.active).length;
+  const complete = active.filter((h) => h.active && didCheckIn(h.id)).length;
   return `<div class="view-heading compact-heading"><div><div class="eyebrow"><span class="eyebrow-dot"></span> SMALL, STEADY THINGS</div><h1>好习惯</h1><p class="intro-copy">不用很厉害，先一起坚持一点点。</p></div><div class="heading-actions"><button class="button button-dark" data-action="add-habit">${icon("plus", 17)}添加习惯</button></div></div>
     <section class="habit-summary"><div><span class="panel-kicker">TODAY'S RITUALS</span><strong>${complete}<small> / ${total}</small></strong><span>今天完成</span></div><div class="summary-progress"><i style="--progress:${total ? `${complete / total * 100}%` : "0%"}"></i></div><p>小小的坚持，也会慢慢变成我们的默契。</p></section>
     <div class="habit-columns"><section class="habit-group panel"><div class="group-heading">${avatar(ui.role)}<div><h2>${escapeHtml(roleName(ui.role))} 的习惯</h2><span>本周已完成 ${mine.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span></div></div><div class="habit-list">${mine.length ? mine.map((h) => habitRow(h)).join("") : `<div class="empty-page"><span class="empty-symbol">✓</span><h3>从一个小习惯开始</h3><p>你可以先为自己选一件想坚持的小事。</p><button class="text-button" data-action="add-habit">添加我的习惯 ${icon("arrow", 14)}</button></div>`}</div></section>
@@ -659,8 +668,8 @@ function showMoodForm() {
 }
 
 function showHabitForm(id = "") {
-  const habit = (data.habits || []).find((h) => h.id === id);
-  showModal(`<form class="form-stack" data-form="habit" data-id="${escapeHtml(id)}">${modalHeader(habit ? "编辑习惯" : "一起坚持一件小事", "LITTLE RITUALS")}<label class="field"><span>习惯名称</span><input name="name" maxlength="60" placeholder="例如：睡前互道晚安" value="${escapeHtml(habit?.name || "")}" required /></label><label class="field"><span>属于谁</span><select name="owner"><option value="${ui.role}" ${!habit || habit.owner === ui.role ? "selected" : ""}>${escapeHtml(roleName(ui.role))}</option><option value="${counterpartRole()}" ${habit?.owner === counterpartRole() ? "selected" : ""}>${escapeHtml(roleName(counterpartRole()))}</option></select></label><div class="form-actions">${habit ? `<button type="button" class="text-button danger-link" data-action="archive-habit" data-id="${escapeHtml(habit.id)}">停用习惯</button>` : `<span></span>`}<button class="button button-dark" type="submit">${habit ? "保存修改" : "创建习惯"}</button></div></form>`);
+  const habit = allHabits().find((h) => h.id === id);
+  showModal(`<form class="form-stack" data-form="habit" data-id="${escapeHtml(id)}">${modalHeader(habit ? "编辑习惯" : "一起坚持一件小事", "LITTLE RITUALS")}<label class="field"><span>习惯名称</span><input name="name" maxlength="60" placeholder="例如：睡前互道晚安" value="${escapeHtml(habit?.name || "")}" required /></label><label class="field"><span>属于谁</span><select name="owner"><option value="${ui.role}" ${!habit || habit.owner === ui.role ? "selected" : ""}>${escapeHtml(roleName(ui.role))}</option><option value="${counterpartRole()}" ${habit?.owner === counterpartRole() ? "selected" : ""}>${escapeHtml(roleName(counterpartRole()))}</option></select></label><label class="field"><span>完成加分</span><input name="gain" type="number" min="0" max="100000" step="1" value="${habit?.gain || 0}" required /></label><label class="field"><span>未完成扣分</span><input name="loss" type="number" min="0" max="100000" step="1" value="${habit?.loss || 0}" required /></label><label class="field"><span>是否启用</span><select name="active"><option value="true" ${habit?.active !== false ? "selected" : ""}>启用</option><option value="false" ${habit?.active === false ? "selected" : ""}>停用</option></select></label><p class="field-hint">按北京时间结算；未完成扣分在次日打开或同步时补齐。停用后保留历史。</p><div class="form-actions">${habit ? `<button type="button" class="text-button danger-link" data-action="archive-habit" data-id="${escapeHtml(habit.id)}">停用习惯</button>` : `<span></span>`}<button class="button button-dark" type="submit">${habit ? "保存修改" : "创建习惯"}</button></div></form>`);
 }
 
 function showSettings() {
@@ -820,6 +829,7 @@ async function refreshWeather() {
 }
 
 async function handleAction(button) {
+  if (button.dataset.action.startsWith("v4-")) { await actionV4(button.dataset); return; }
   const action = button.dataset.action;
   const id = button.dataset.id;
   if (action === "navigate") {
@@ -926,16 +936,20 @@ async function markVisibleUnread() {
 }
 
 async function toggleCheckin(habitId) {
-  const habit = data.habits.find((h) => h.id === habitId);
-  if (!habit || habit.owner !== ui.role) return;
-  const current = data.checkins.find((c) => c.habitId === habitId && c.date === dateKey() && !c.deletedAt);
+  if (pointState().habits.some(h => h.id === habitId)) {
+    await updatePoints(state => points.checkin(state, habitId, ui.role, makeId()));
+    renderShell(); return;
+  }
+  const habit = allHabits().find((h) => h.id === habitId);
+  if (!habit || !habit.active || habit.owner !== ui.role) return;
+  const current = data.checkins.find((c) => c.habitId === habitId && c.date === points.today() && !c.deletedAt);
   try {
     if (current) {
       await persistDelete(current);
       data.checkins = data.checkins.filter((c) => c.id !== current.id);
       toastMessage("今天的打卡已撤销");
     } else {
-      const item = { id: `${habitId}-${dateKey()}-${ui.role}`, habitId, date: dateKey(), owner: ui.role, createdAt: isoNow() };
+      const item = { id: `${habitId}-${points.today()}-${ui.role}`, habitId, date: points.today(), owner: ui.role, createdAt: isoNow() };
       const saved = await persistRecord("checkins", item);
       data.checkins.push(saved);
       toastMessage("今天的小目标完成了");
@@ -946,8 +960,12 @@ async function toggleCheckin(habitId) {
 }
 
 async function archiveHabit(id) {
-  const item = data.habits.find((h) => h.id === id);
+  const item = allHabits().find((h) => h.id === id);
   if (!item || !confirm(`停用“${item.name}”？已有打卡记录会保留。`)) return;
+  if (pointState().habits.some(h => h.id === id)) {
+    await updatePoints(state => points.saveHabit(state, { ...item, active: false }));
+    closeModal(); renderShell(); return;
+  }
   try {
     const saved = await persistRecord('habits', { ...item, active: false, updatedAt: isoNow() });
     data.habits = data.habits.map((h) => h.id === id ? saved : h);
@@ -961,6 +979,7 @@ async function submitForm(formElement, intent = 'profile') {
   const form = new FormData(formElement);
   const kind = formElement.dataset.form;
   try {
+    if (kind.startsWith("v4-")) { await submitV4(form, kind, formElement.dataset.id); return; }
     if (kind === "anniversary") {
       const id = formElement.dataset.id || makeId();
       const existing = data.anniversaries.find((a) => a.id === id);
@@ -983,11 +1002,16 @@ async function submitForm(formElement, intent = 'profile') {
       closeModal(); renderShell(); toastMessage("心情状态已更新");
     } else if (kind === "habit") {
       const id = formElement.dataset.id || makeId();
-      const existing = data.habits.find((h) => h.id === id);
+      const existing = allHabits().find((h) => h.id === id);
       const item = { ...(existing || {}), id, name: form.get("name").trim(), owner: form.get("owner"), active: true, createdAt: existing?.createdAt || isoNow(), updatedAt: isoNow() };
       if (!item.name) throw new Error('请填写习惯名称。');
-      const saved = await persistRecord("habits", item);
-      data.habits = [saved, ...data.habits.filter((h) => h.id !== id)];
+      item.active = form.get('active') !== 'false';
+      item.gain = points.amount(form.get('gain') || 0); item.loss = points.amount(form.get('loss') || 0);
+      await updatePoints(state => {
+        const migrating = !state.habits.some(h => h.id === id);
+        points.saveHabit(state, item);
+        if (migrating && didCheckIn(id)) state.checkins.push({ id: `${id}-${points.today()}-${item.owner}`, habitId: id, owner: item.owner, date: points.today(), credit: 0 });
+      });
       if (!remote) saveDemo();
       closeModal(); renderShell(); toastMessage(existing ? "习惯已更新" : "新习惯已经加入");
     } else if (kind === "whisper") {
@@ -1186,8 +1210,135 @@ function boot() {
   refreshWeather();
   autoConnect();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js", { updateViaCache: 'none' }).catch(() => {});
-  setInterval(() => { if (remote && document.visibilityState === "visible") syncNow(true); }, 30000);
+  setInterval(() => { if (document.visibilityState === "visible") { if (remote) syncNow(true); else scheduleSettlement(); } }, 30000);
   setInterval(() => { if (document.visibilityState === "visible") refreshWeather(); }, 10 * 60 * 1000);
+}
+
+function pointState() { return data.points?.[0] || points.empty(); }
+function allHabits() {
+  const managed = pointState().habits;
+  return [...managed, ...(data.habits || []).filter(h => !managed.some(m => m.id === h.id))];
+}
+function allCheckins() {
+  const state = pointState();
+  return [...state.checkins, ...(data.checkins || []).filter(c => !state.habits.some(h => h.id === c.habitId && c.date >= h.startDate))];
+}
+async function updatePoints(change) {
+  const next = structuredClone(pointState());
+  points.settle(next);
+  change(next);
+  if (!points.valid(next)) throw new Error('积分资料不完整，尚未保存。');
+  const saved = await persistRecord('points', next);
+  // Persist local mode before publishing successful changes to the screen.
+  if (!remote && !storageSet(DATA_KEY, JSON.stringify({ ...data, points: [saved] }))) throw new Error('浏览器无法保存，本次操作未完成。');
+  data.points = [saved];
+}
+let settlementScheduled = false;
+function scheduleSettlement() {
+  if (settlementScheduled || !pointState().habits.length) return;
+  settlementScheduled = true;
+  setTimeout(async () => {
+    settlementScheduled = false;
+    if (ui.busy || ui.syncBusy || modal.open) return;
+    const next = structuredClone(pointState());
+    if (!points.settle(next)) return;
+    ui.busy = true;
+    try { await updatePoints(() => {}); renderShell(); }
+    catch (error) { toastMessage(`习惯积分待结算：${error.message}`, true); }
+    finally { ui.busy = false; }
+  }, 0);
+}
+const v4Button = (action, label, id = '', extra = '') => `<button type="button" class="button button-light" data-action="v4-${action}" data-id="${escapeHtml(id)}" ${extra}>${label}</button>`;
+const v4Field = (name, label, value = '', type = 'text') => `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(value)}" ${type === 'number' ? 'min="0" max="100000" step="1"' : 'maxlength="120"'} required /></label>`;
+function v4Form(kind, title, content, id = '') {
+  showModal(`<form class="form-stack" data-form="v4-${kind}" data-id="${escapeHtml(id)}">${modalHeader(title, 'OUR LITTLE REWARDS')}${content}<div class="form-actions"><button type="button" class="text-button" data-action="close-modal">取消</button><button class="button button-dark" type="submit">确认${kind === 'execute' ? '执行' : '保存'}</button></div></form>`);
+}
+function renderPoints() {
+  const state = pointState(), tab = ui.pointsTab || 'gain';
+  const label = { gain: '加分', loss: '扣分', reward: '奖励', ledger: '流水' };
+  let body = '';
+  if (tab === 'ledger') {
+    body = `<div class="v4-list">${[...state.ledger].reverse().map(e => `<article class="v4-row"><div><strong>${escapeHtml(roleName(e.owner))} · ${escapeHtml(e.reason)}</strong><p>${escapeHtml(new Date(e.at).toLocaleString('zh-CN'))} · ${e.actor === 'system' ? '自动结算' : escapeHtml(roleName(e.actor)) + ' 操作'}</p>${e.requested !== e.amount ? `<small>原定 ${e.requested}，按余额实际执行</small>` : ''}</div><b class="v4-amount">${e.amount > 0 ? '+' : ''}${e.amount}</b></article>`).join('') || '<p class="field-hint">积分变动会记录在这里。</p>'}</div>`;
+  } else {
+    const rules = state.rules.filter(r => r.kind === tab);
+    body = `<div class="feature-actions">${v4Button('rule', `新增${label[tab]}项`, '', `data-kind="${tab}"`)}</div>`;
+    if (tab === 'reward') body += `<article class="v4-row"><div><strong>LoveDiary</strong><p>默认奖励 · 用积分解锁对方的日记，解锁后可反复阅读。</p></div><button class="button button-dark" data-action="navigate" data-view="diary">挑选日记</button></article>`;
+    body += rules.map(r => `<article class="v4-row ${r.active ? '' : 'v4-inactive'}"><div><strong>${escapeHtml(r.name)} · ${tab === 'gain' ? '+' : '−'}${r.value}</strong><p>${escapeHtml(r.reason)}${r.active ? '' : ' · 已停用'}</p></div><div class="feature-actions">${r.active ? v4Button('confirm', tab === 'reward' ? '兑换' : label[tab], r.id) : ''}${v4Button('rule', '编辑', r.id)}</div></article>`).join('');
+    if (tab !== 'reward') body += state.habits.filter(h => h[tab === 'gain' ? 'gain' : 'loss'] > 0).map(h => `<article class="v4-row"><div><strong>${escapeHtml(h.name)} · ${tab === 'gain' ? '+' + h.gain : '−' + h.loss}</strong><p>好习惯 · ${escapeHtml(roleName(h.owner))} · ${h.active ? '自动执行' : '已停用'} · ${tab === 'gain' ? '完成时加分' : '次日结算未完成扣分'}</p></div><button class="text-button" data-action="edit-habit" data-id="${escapeHtml(h.id)}">修改习惯</button></article>`).join('');
+  }
+  return `<div class="view-heading"><div><div class="eyebrow">LITTLE REWARDS</div><h1>积分</h1><p class="intro-copy">把用心记下来，也给彼此一点奖励。</p></div></div><div class="v4-balances">${['me', 'partner'].map(r => `<section class="panel"><span>${escapeHtml(roleName(r))}</span><strong>${points.balance(state, r)}<small> 积分</small></strong></section>`).join('')}</div><section class="panel feature-panel"><div class="v4-tabs">${Object.entries(label).map(([key, name]) => v4Button('tab', name, key, `aria-pressed="${tab === key}"`)).join('')}</div>${body}</section>`;
+}
+function renderDiary() {
+  const state = pointState();
+  const group = owner => state.diaries.filter(d => d.owner === owner).sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(d => {
+    const open = d.owner === ui.role || points.unlocked(state, d.id, ui.role);
+    return `<article class="v4-row"><div><strong>${escapeHtml(d.title)}</strong><p>${escapeHtml(d.createdAt.slice(0, 10))} · ${open ? '可阅读' : d.price + ' 积分解锁'}</p></div><div class="feature-actions">${v4Button(open ? 'read' : 'diary-confirm', open ? '阅读' : '解锁', d.id)}${d.owner === ui.role ? v4Button('diary', '编辑', d.id) : ''}</div></article>`;
+  }).join('') || '<p class="field-hint">还没有日记。</p>';
+  return `<div class="view-heading"><div><div class="eyebrow">LOVE DIARY</div><h1>LoveDiary</h1><p class="intro-copy">把想留给对方的话，写成一份小奖励。我的积分：${points.balance(state, ui.role)}</p></div>${v4Button('diary', '写日记')}</div><section class="panel feature-panel"><h2>对方的日记</h2>${group(counterpartRole())}</section><section class="panel feature-panel"><h2>我的日记</h2>${group(ui.role)}</section>`;
+}
+let pointConfirmation = null;
+async function actionV4({ action, id, kind }) {
+  const state = pointState();
+  if (action === 'v4-tab') { ui.pointsTab = id; renderShell(); return; }
+  if (action === 'v4-rule') {
+    const rule = state.rules.find(r => r.id === id);
+    kind = rule?.kind || kind;
+    v4Form('rule', `${rule ? '编辑' : '新增'}${{gain:'加分',loss:'扣分',reward:'奖励'}[kind]}项`, `<input type="hidden" name="kind" value="${kind}" />${v4Field('name', '名称', rule?.name)}${v4Field('reason', '原因 / 奖励说明', rule?.reason)}${v4Field('value', '积分', rule?.value ?? 1, 'number')}<label class="field"><span>是否启用</span><select name="active"><option value="true">启用</option><option value="false" ${rule?.active === false ? 'selected' : ''}>停用</option></select></label>`, id); return;
+  }
+  if (action === 'v4-diary') {
+    const diary = state.diaries.find(d => d.id === id);
+    if (diary && diary.owner !== ui.role) throw new Error('只能编辑自己的日记。');
+    v4Form('diary', diary ? '编辑日记' : '写一篇 LoveDiary', `${v4Field('title', '标题', diary?.title)}${v4Field('price', '解锁所需积分', diary?.price ?? 20, 'number')}<label class="field"><span>正文</span><textarea name="content" rows="10" maxlength="20000" required>${escapeHtml(diary?.content || '')}</textarea></label><p class="field-hint">保存后，对方可在奖励中兑换这篇日记。</p>`, id); return;
+  }
+  if (action === 'v4-read') {
+    const diary = state.diaries.find(d => d.id === id);
+    if (!diary || (diary.owner !== ui.role && !points.unlocked(state, id, ui.role))) throw new Error('请先解锁这篇日记。');
+    showModal(`${modalHeader(escapeHtml(diary.title), 'LOVE DIARY')}<div class="v4-diary-body">${escapeHtml(diary.content)}</div>`); return;
+  }
+  if (action === 'v4-confirm' || action === 'v4-diary-confirm') {
+    const diary = action === 'v4-diary-confirm';
+    const item = (diary ? state.diaries : state.rules).find(r => r.id === id);
+    if (!item || (!diary && !item.active)) throw new Error('此项目已停用或不存在。');
+    if (diary && points.unlocked(state, id, ui.role)) { await actionV4({action:'v4-read',id}); return; }
+    pointConfirmation = { id: makeId(), itemId: id, diary, snapshot: JSON.stringify(item), actor: ui.role };
+    const value = diary ? item.price : item.value;
+    const reward = diary || item.kind === 'reward';
+    v4Form('execute', diary ? '确认解锁日记' : '确认积分操作', `<p class="form-intro">${escapeHtml(diary ? item.title : item.name)} · ${!diary && item.kind === 'gain' ? '加' : '消耗 / 扣'} ${value} 积分</p><p>${escapeHtml(item.reason || '解锁后可反复阅读，不再收费。')}</p>${reward ? `<p>使用 ${escapeHtml(roleName(ui.role))} 的积分，当前余额 ${points.balance(state, ui.role)}</p>` : `<label class="field"><span>积分归属人</span><select name="owner">${['me','partner'].map(r => `<option value="${r}" ${r === ui.role ? 'selected' : ''}>${escapeHtml(roleName(r))}</option>`).join('')}</select></label>`}<p class="field-hint">请核对后确认，取消不会变动积分。</p>`, pointConfirmation.id);
+  }
+}
+async function submitV4(form, kind, id) {
+  if (kind === 'v4-rule') {
+    await updatePoints(state => {
+      const rule = { id: id || makeId(), kind: form.get('kind'), name: form.get('name').trim(), reason: form.get('reason').trim(), value: points.amount(form.get('value')), active: form.get('active') === 'true' };
+      if (!rule.name || !rule.reason) throw new Error('请填写名称和原因。');
+      state.rules = [rule, ...state.rules.filter(r => r.id !== rule.id)];
+    });
+  } else if (kind === 'v4-diary') {
+    await updatePoints(state => {
+      const existing = state.diaries.find(d => d.id === id);
+      if (existing && existing.owner !== ui.role) throw new Error('只能编辑自己的日记。');
+      const diary = { id: id || makeId(), owner: ui.role, title: form.get('title').trim(), content: form.get('content').trim(), price: points.amount(form.get('price')), createdAt: existing?.createdAt || isoNow(), updatedAt: isoNow() };
+      if (!diary.title || !diary.content) throw new Error('请填写标题和正文。');
+      state.diaries = [diary, ...state.diaries.filter(d => d.id !== diary.id)];
+    });
+  } else if (kind === 'v4-execute') {
+    const pending = pointConfirmation;
+    if (!pending || pending.id !== id || pending.actor !== ui.role) throw new Error('确认已失效，请重新选择项目。');
+    await updatePoints(state => {
+      if (state.ledger.some(e => e.id === pending.id)) return;
+      const item = (pending.diary ? state.diaries : state.rules).find(r => r.id === pending.itemId);
+      if (JSON.stringify(item) !== pending.snapshot) throw new Error('项目已变更，请重新确认。');
+      if (pending.diary) points.redeem(state, item.id, ui.role, pending.id);
+      else {
+        const owner = item.kind === 'reward' ? ui.role : form.get('owner');
+        if (!['me','partner'].includes(owner) || !item.active) throw new Error('项目或归属人无效。');
+        if (item.kind === 'reward' && points.balance(state, owner) < item.value) throw new Error('积分不足，暂时无法兑换。');
+        points.entry(state, { id: pending.id, owner, actor: ui.role, amount: item.kind === 'gain' ? item.value : -item.value, reason: `${item.name} · ${item.reason}`, source: `rule:${item.id}` });
+      }
+    });
+    pointConfirmation = null;
+  }
+  closeModal(); renderShell(); toastMessage('已保存');
 }
 
 boot();

@@ -799,3 +799,27 @@ body {
 .city-album-link:focus-visible { outline: 2px solid #245f91; outline-offset: 2px; }
 @media (min-width: 601px) and (max-width: 1200px) { .treehole-dashboard-panel { padding-right: 14px; padding-left: 14px; } }
 @media (max-width: 600px) { .treehole-dashboard-panel { min-height: 171px; padding: 14px 15px 12px; } }
+
+/* V4: independent points and diary pages. */
+.v4-balances { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; margin: 20px 0; }
+.v4-balances .panel { padding: 22px; color: #63839d; }
+.v4-balances strong { display: block; margin-top: 8px; color: #245f91; font-size: 32px; }
+.v4-balances small { font-size: 12px; font-weight: 400; }
+.v4-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.v4-tabs [aria-pressed="true"] { color: white; background: #245f91; border-color: #245f91; }
+.v4-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; border-bottom: 1px solid #d6e7f2; }
+.v4-row > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.v4-row strong { color: #275b87; font-size: 14px; }
+.v4-row p { margin: 7px 0 0; color: #63839d; font-size: 12px; line-height: 1.7; }
+.v4-row small { color: #8b9cab; }
+.v4-amount { flex-shrink: 0; font-size: 20px; color: #245f91; }
+.v4-inactive { opacity: .65; }
+.v4-diary-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 2; color: #405d73; }
+@media (max-width: 640px) {
+  .mobile-nav { display: flex; overflow-x: auto; justify-content: flex-start; gap: 4px; }
+  .mobile-nav .nav-item { flex: 0 0 57px; }
+  .v4-row { flex-wrap: wrap; gap: 10px; }
+  .v4-row .feature-actions { margin: 0; }
+  .v4-balances .panel { padding: 16px; }
+  .v4-tabs .button { flex: 1; padding: 8px; }
+}
