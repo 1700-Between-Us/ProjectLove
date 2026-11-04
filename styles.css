@@ -814,6 +814,8 @@ body {
 .v4-row small { color: #8b9cab; }
 .v4-amount { flex-shrink: 0; font-size: 20px; color: #245f91; }
 .v4-inactive { opacity: .65; }
+.v4-diary-reader .modal-head > div { min-width: 0; overflow-wrap: anywhere; }
+.v4-diary-reader .modal-head button { flex: 0 0 auto; }
 .v4-diary-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 2; color: #405d73; }
 @media (max-width: 640px) {
   .mobile-nav { display: flex; overflow-x: auto; justify-content: flex-start; gap: 4px; }

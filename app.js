@@ -1305,7 +1305,7 @@ async function actionV4({ action, id, kind }) {
   if (action === 'v4-read') {
     const diary = state.diaries.find(d => d.id === id);
     if (!diary || (diary.owner !== ui.role && !points.unlocked(state, id, ui.role))) throw new Error('请先解锁这篇日记。');
-    showModal(`${modalHeader(escapeHtml(diary.title), 'LOVE DIARY')}<div class="v4-diary-body">${escapeHtml(diary.content)}</div>`); return;
+    showModal(`<article class="form-stack v4-diary-reader">${modalHeader(escapeHtml(diary.title), 'LOVE DIARY')}<div class="v4-diary-body">${escapeHtml(diary.content)}</div></article>`); return;
   }
   if (action === 'v4-confirm' || action === 'v4-diary-confirm') {
     const diary = action === 'v4-diary-confirm';
