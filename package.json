@@ -1,6 +1,6 @@
 {
   "name": "project-love",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "description": "双人日常 PWA，GitHub Pages + 私有仓库同步、城市地图与轻量照片",

@@ -274,6 +274,7 @@ function renderShell() {
           <div class="crumb"><span>${today}</span><span class="crumb-dot"></span><span class="sync-label ${remote ? "is-synced" : ""}" title="${mode}"><i></i>${mode}</span></div>
           <div class="top-actions">
             ${installButton}
+            <button class="role-button" data-action="switch-role" title="切换双方视角（测试用途）" aria-label="当前为${escapeHtml(roleName(ui.role))}视角，切换至${escapeHtml(roleName(counterpartRole()))}视角">${avatar(ui.role)}<span>${escapeHtml(roleName(ui.role))} 的视角</span><span aria-hidden="true">⇄</span></button>
             <button class="icon-button sync-button" data-action="refresh" title="立即同步" aria-label="立即同步">${icon("refresh")}</button>
             <button class="icon-button settings-button" data-action="settings" title="设置" aria-label="设置">${icon("settings")}</button>
           </div>
@@ -832,6 +833,17 @@ async function handleAction(button) {
   if (button.dataset.action.startsWith("v4-")) { await actionV4(button.dataset); return; }
   const action = button.dataset.action;
   const id = button.dataset.id;
+  if (action === 'switch-role') {
+    ui.role = counterpartRole();
+    ui.draft = '';
+    ui.photoGroup = '';
+    pointConfirmation = null;
+    const saved = storageSet(ROLE_KEY, ui.role);
+    renderShell();
+    refreshWeather();
+    toastMessage(saved ? `已切换至 ${roleName(ui.role)} 的视角` : `已切换视角，但浏览器无法记住选择`, !saved);
+    return;
+  }
   if (action === "navigate") {
     ui.view = button.dataset.view || "home";
     if (ui.view !== 'photos') ui.photoGroup = '';
