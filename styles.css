@@ -825,3 +825,15 @@ body {
   .v4-balances .panel { padding: 16px; }
   .v4-tabs .button { flex: 1; padding: 8px; }
 }
+
+.habit-days { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; padding: 12px; border: 1px solid #c5ddeb; border-radius: 4px; color: #405d73; font-size: 12px; }
+.habit-days legend { padding: 0 5px; }
+.habit-days label { display: flex; align-items: center; gap: 5px; }
+.habit-board { margin-top: 18px; }
+.habit-board-scroll { overflow-x: auto; margin-top: 16px; }
+.habit-board table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 12px; color: #405d73; }
+.habit-board th, .habit-board td { padding: 12px 8px; border-bottom: 1px solid #d6e7f2; text-align: center; }
+.habit-board th:first-child { text-align: left; min-width: 130px; max-width: 220px; overflow-wrap: anywhere; }
+.habit-board small { display: block; margin-top: 4px; font-size: 10px; color: #7893a8; }
+.habit-board .board-done { color: #245f91; background: #e5f3fd; font-weight: 700; }
+.reward-ticket-title { margin-top: 28px; color: #275b87; font-size: 15px; }

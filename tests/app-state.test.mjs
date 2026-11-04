@@ -84,7 +84,7 @@ function harness(Store = class {}, overrides = {}, initialStorage = []) {
     renderShell, unreadCount, saveProfileSettings, whisperRow, moodFor, autoConnect, uploadPhoto, loadVisiblePhotos,
     answerTreehole, showTreeholePrompt, treeholeStatus, refreshWeather, renderTreeholesPage, showSettings,
     photoUrls, photoLoads, resetDemo, handleAction, showAnniversaryForm,
-    pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
+    renderHabitBoard, renderRewardTickets, pointState, updatePoints, allHabits, allCheckins, renderPoints, renderDiary, actionV4, submitV4, toggleCheckin,
     get weather() { return weatherCache; }
   };`, context, { filename: 'app.js' });
   return { app: context.__appTest, nodes, storage, listeners, document };
@@ -527,9 +527,11 @@ test('V4 manual points require confirmation and preserve balances on cancellatio
   assert.equal(points.balance(app.pointState(), 'me'), 0);
   const confirmation = nodes.get('#modal-content').innerHTML.match(/data-form="v4-execute" data-id="([^"]+)"/)[1];
   await app.submitV4(form({owner:'me'}), 'v4-execute', confirmation);
-  assert.equal(points.balance(app.pointState(), 'me'), 10);
+  assert.equal(points.balance(app.pointState(), 'partner'), 10);
+  assert.equal(points.balance(app.pointState(), 'me'), 0);
   await assert.rejects(app.submitV4(form({owner:'me'}), 'v4-execute', confirmation), /失效/);
-  assert.equal(points.balance(app.pointState(), 'me'), 10);
+  assert.equal(points.balance(app.pointState(), 'partner'), 10);
+  assert.equal(points.balance(app.pointState(), 'me'), 0);
 });
 test('V4 habits migrate existing completion without awarding retroactive points', async () => {
   const { app } = harness(); app.data = state();
@@ -571,4 +573,27 @@ test('perspective toggle persists role, clears drafts, and updates diary ownersh
   assert.equal(app.ui.role, 'me');
   assert.equal(storage.get('between-us-role-v1'), 'me');
   assert.doesNotMatch(app.renderDiary(), /v4-read/);
+});
+
+test('weekly board switches dates, retains historical completions and escapes habit names', async () => {
+  const {app}=harness();app.data=state();
+  app.data.habits.push({id:'h',owner:'me',name:'<unsafe>',active:true,createdAt:'2026-01-01T00:00:00Z'});
+  const last=points.weekDays(points.today(),-1);
+  app.data.checkins.push({id:'c',habitId:'h',owner:'me',date:last[0]});
+  assert.match(app.renderHabitBoard(),new RegExp(points.weekDays(points.today())[0]));
+  await app.actionV4({action:'v4-week',id:'last'});
+  const html=app.renderHabitBoard();assert.match(html,new RegExp(last[0]));assert.match(html,/board-done/);
+  assert.match(html,/&lt;unsafe&gt;/);assert.doesNotMatch(html,/<unsafe>/);
+});
+test('only the counterpart sees reward fulfillment and manual confirmation has no self selector', async()=>{
+  const {app,nodes}=harness();app.data=state();
+  const s=points.empty();points.entry(s,{id:'fund',owner:'me',actor:'partner',amount:10,reason:'test',source:'rule:fund'});
+  const reward={id:'r',kind:'reward',name:'奶茶',reason:'一杯',value:10,active:true};
+  points.reward(s,reward,'me','ticket');app.data.points=[s];
+  assert.doesNotMatch(app.renderRewardTickets(s),/v4-fulfill-confirm/);
+  app.ui.role='partner';assert.match(app.renderRewardTickets(s),/v4-fulfill-confirm/);
+  s.rules.push({...reward,id:'g',kind:'gain'});
+  await app.actionV4({action:'v4-confirm',id:'g'});
+  const html=nodes.get('#modal-content').innerHTML;
+  assert.doesNotMatch(html,/name="owner"/);assert.match(html,/对方/);
 });

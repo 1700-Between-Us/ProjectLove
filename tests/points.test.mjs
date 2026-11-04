@@ -77,3 +77,43 @@ test('GitHub stores the whole points transaction with a SHA and rejects stale sa
   await assert.rejects(store.save('points', s), /冲突/);
   assert.equal(version, 1);
 });
+
+test('specified weekdays are rest days and do not incur penalties', () => {
+  const s=p.empty(); fund(s);
+  p.saveHabit(s,{...habit,mode:'days',days:[1,3],target:3},'2026-11-02');
+  assert.throws(()=>p.checkin(s,habit.id,'me','rest','2026-11-03'),/休息日/);
+  p.settle(s,'2026-11-05');
+  assert.equal(p.balance(s,'me'),94); // Monday, Wednesday only
+});
+test('weekly targets settle only after Sunday and charge only missing repetitions', () => {
+  const s=p.empty();fund(s);
+  p.saveHabit(s,{...habit,mode:'weekly',target:3},'2026-11-02');
+  p.checkin(s,habit.id,'me','mon','2026-11-02');
+  p.checkin(s,habit.id,'me','wed','2026-11-04');
+  p.settle(s,'2026-11-08');assert.equal(p.balance(s,'me'),110);
+  p.settle(s,'2026-11-09');assert.equal(p.balance(s,'me'),107);
+  p.settle(s,'2026-11-09');assert.equal(p.balance(s,'me'),107);
+});
+test('manual points target only the counterpart and reversals retain original entries', () => {
+  const s=p.empty(),rule={id:'r',kind:'gain',name:'test',reason:'test',value:5,active:true};
+  assert.throws(()=>p.manual(s,rule,'me','me','bad'),/对方/);
+  p.manual(s,rule,'me','partner','good');assert.equal(p.balance(s,'partner'),5);
+  assert.throws(()=>p.undo(s,'good','partner','bad-undo'),/不能撤销/);
+  p.undo(s,'good','me','undo');assert.equal(p.balance(s,'partner'),0);
+  assert.equal(s.ledger.length,2);assert.equal(s.ledger[0].amount,5);
+  assert.throws(()=>p.undo(s,'good','me','again'),/已经撤销/);
+});
+test('reward tickets charge once and require the other person to confirm fulfillment', () => {
+  const s=p.empty();fund(s);
+  const rule={id:'r',kind:'reward',name:'奶茶',reason:'一杯',value:10,active:true};
+  p.reward(s,rule,'me','ticket');p.reward(s,rule,'me','ticket');
+  assert.equal(p.balance(s,'me'),90);
+  assert.throws(()=>p.fulfill(s,'ticket','me'),/对方/);
+  p.fulfill(s,'ticket','partner');const at=s.ledger.at(-1).fulfilledAt;
+  p.fulfill(s,'ticket','partner');assert.equal(s.ledger.at(-1).fulfilledAt,at);
+  assert.equal(p.balance(s,'me'),90);assert.ok(p.valid(s));
+});
+test('weekly boards use Monday boundaries across years',()=>{
+  assert.deepEqual(p.weekDays('2027-01-01'),['2026-12-28','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-02','2027-01-03']);
+  assert.equal(p.weekDays('2027-01-01',-1)[0],'2026-12-21');
+});

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'between-us-shell-v4.1.1';
+const CACHE_NAME = 'between-us-shell-v4.3';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './github-store.mjs', './date-utils.mjs', './v2-utils.mjs', './image-utils.mjs', './city-map.mjs', './points.mjs', './manifest.webmanifest', './couple-mark.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 SHELL.push('./vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/LICENSE');
 const ALLOWED = new Set(SHELL.map((path) => new URL(path, self.location.href).href));

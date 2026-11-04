@@ -414,8 +414,9 @@ function renderWhispersPage() {
 function habitRow(habit, compact = false) {
   const done = didCheckIn(habit.id);
   const owner = habit.owner;
-  const completeControl = owner === ui.role && habit.active ? `<button class="check-toggle ${done ? "checked" : ""}" data-action="toggle-checkin" data-id="${escapeHtml(habit.id)}" aria-label="${done ? "取消今天的打卡" : "完成今天的打卡"}" title="${done ? "今天已完成" : "完成今天的打卡"}">${done ? icon("check", 16) : ""}</button>` : `<span class="check-toggle other-check ${done ? "checked" : ""}" aria-label="${done ? "今天已打卡" : "尚未打卡"}">${done ? icon("check", 16) : ""}</span>`;
-  return `<article class="habit-row ${done ? "is-done" : ""} ${compact ? "compact" : ""}">${completeControl}<div class="habit-title"><strong>${escapeHtml(habit.name)}</strong><span>${habit.active ? "启用" : "已停用"} · ${escapeHtml(roleName(owner))} · 连续 ${streakCount(habit.id)} 天</span></div><div class="habit-week"><span>${weeklyCount(habit.id)}<small>本周</small></span></div>${!compact ? `<button class="icon-button small habit-edit" data-action="edit-habit" data-id="${escapeHtml(habit.id)}" title="编辑习惯" aria-label="编辑习惯">${icon("edit", 15)}</button>` : ""}</article>`;
+  const rest = habit.policies && !points.scheduled(points.policyAt(habit, points.today()), points.today());
+  const completeControl = owner === ui.role && habit.active && (!rest || done) ? `<button class="check-toggle ${done ? "checked" : ""}" data-action="toggle-checkin" data-id="${escapeHtml(habit.id)}" aria-label="${done ? "取消今天的打卡" : "完成今天的打卡"}" title="${done ? "今天已完成" : "完成今天的打卡"}">${done ? icon("check", 16) : ""}</button>` : `<span class="check-toggle other-check ${done ? "checked" : ""}" aria-label="${done ? "今天已打卡" : "尚未打卡"}">${done ? icon("check", 16) : ""}</span>`;
+  return `<article class="habit-row ${done ? "is-done" : ""} ${compact ? "compact" : ""}">${completeControl}<div class="habit-title"><strong>${escapeHtml(habit.name)}</strong><span>${!habit.active ? "已停用" : rest ? "休息日" : habit.mode === "weekly" ? `每周 ${habit.target} 次` : "启用"} · ${escapeHtml(roleName(owner))} · 连续 ${streakCount(habit.id)} 天</span></div><div class="habit-week"><span>${weeklyCount(habit.id)}<small>本周</small></span></div>${!compact ? `<button class="icon-button small habit-edit" data-action="edit-habit" data-id="${escapeHtml(habit.id)}" title="编辑习惯" aria-label="编辑习惯">${icon("edit", 15)}</button>` : ""}</article>`;
 }
 
 function renderHabitsPage() {
@@ -426,7 +427,7 @@ function renderHabitsPage() {
   const complete = active.filter((h) => h.active && didCheckIn(h.id)).length;
   return `<div class="view-heading compact-heading"><div><div class="eyebrow"><span class="eyebrow-dot"></span> SMALL, STEADY THINGS</div><h1>好习惯</h1><p class="intro-copy">不用很厉害，先一起坚持一点点。</p></div><div class="heading-actions"><button class="button button-dark" data-action="add-habit">${icon("plus", 17)}添加习惯</button></div></div>
     <section class="habit-summary"><div><span class="panel-kicker">TODAY'S RITUALS</span><strong>${complete}<small> / ${total}</small></strong><span>今天完成</span></div><div class="summary-progress"><i style="--progress:${total ? `${complete / total * 100}%` : "0%"}"></i></div><p>小小的坚持，也会慢慢变成我们的默契。</p></section>
-    <div class="habit-columns"><section class="habit-group panel"><div class="group-heading">${avatar(ui.role)}<div><h2>${escapeHtml(roleName(ui.role))} 的习惯</h2><span>本周已完成 ${mine.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span></div></div><div class="habit-list">${mine.length ? mine.map((h) => habitRow(h)).join("") : `<div class="empty-page"><span class="empty-symbol">✓</span><h3>从一个小习惯开始</h3><p>你可以先为自己选一件想坚持的小事。</p><button class="text-button" data-action="add-habit">添加我的习惯 ${icon("arrow", 14)}</button></div>`}</div></section>
+    ${renderHabitBoard()}<div class="habit-columns"><section class="habit-group panel"><div class="group-heading">${avatar(ui.role)}<div><h2>${escapeHtml(roleName(ui.role))} 的习惯</h2><span>本周已完成 ${mine.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span></div></div><div class="habit-list">${mine.length ? mine.map((h) => habitRow(h)).join("") : `<div class="empty-page"><span class="empty-symbol">✓</span><h3>从一个小习惯开始</h3><p>你可以先为自己选一件想坚持的小事。</p><button class="text-button" data-action="add-habit">添加我的习惯 ${icon("arrow", 14)}</button></div>`}</div></section>
     <section class="habit-group panel"><div class="group-heading">${avatar(counterpartRole())}<div><h2>${escapeHtml(roleName(counterpartRole()))} 的习惯</h2><span>本周已完成 ${theirs.reduce((n, h) => n + weeklyCount(h.id), 0)} 次</span></div></div><div class="habit-list">${theirs.length ? theirs.map((h) => habitRow(h)).join("") : `<div class="empty-page"><span class="empty-symbol">✳</span><h3>TA 的清单还空着</h3><p>把这页分享给 TA，一起添一个小目标。</p></div>`}</div></section></div>`;
 }
 
@@ -670,7 +671,7 @@ function showMoodForm() {
 
 function showHabitForm(id = "") {
   const habit = allHabits().find((h) => h.id === id);
-  showModal(`<form class="form-stack" data-form="habit" data-id="${escapeHtml(id)}">${modalHeader(habit ? "编辑习惯" : "一起坚持一件小事", "LITTLE RITUALS")}<label class="field"><span>习惯名称</span><input name="name" maxlength="60" placeholder="例如：睡前互道晚安" value="${escapeHtml(habit?.name || "")}" required /></label><label class="field"><span>属于谁</span><select name="owner"><option value="${ui.role}" ${!habit || habit.owner === ui.role ? "selected" : ""}>${escapeHtml(roleName(ui.role))}</option><option value="${counterpartRole()}" ${habit?.owner === counterpartRole() ? "selected" : ""}>${escapeHtml(roleName(counterpartRole()))}</option></select></label><label class="field"><span>完成加分</span><input name="gain" type="number" min="0" max="100000" step="1" value="${habit?.gain || 0}" required /></label><label class="field"><span>未完成扣分</span><input name="loss" type="number" min="0" max="100000" step="1" value="${habit?.loss || 0}" required /></label><label class="field"><span>是否启用</span><select name="active"><option value="true" ${habit?.active !== false ? "selected" : ""}>启用</option><option value="false" ${habit?.active === false ? "selected" : ""}>停用</option></select></label><p class="field-hint">按北京时间结算；未完成扣分在次日打开或同步时补齐。停用后保留历史。</p><div class="form-actions">${habit ? `<button type="button" class="text-button danger-link" data-action="archive-habit" data-id="${escapeHtml(habit.id)}">停用习惯</button>` : `<span></span>`}<button class="button button-dark" type="submit">${habit ? "保存修改" : "创建习惯"}</button></div></form>`);
+  showModal(`<form class="form-stack" data-form="habit" data-id="${escapeHtml(id)}">${modalHeader(habit ? "编辑习惯" : "一起坚持一件小事", "LITTLE RITUALS")}<label class="field"><span>习惯名称</span><input name="name" maxlength="60" placeholder="例如：睡前互道晚安" value="${escapeHtml(habit?.name || "")}" required /></label><label class="field"><span>属于谁</span><select name="owner"><option value="${ui.role}" ${!habit || habit.owner === ui.role ? "selected" : ""}>${escapeHtml(roleName(ui.role))}</option><option value="${counterpartRole()}" ${habit?.owner === counterpartRole() ? "selected" : ""}>${escapeHtml(roleName(counterpartRole()))}</option></select></label><label class="field"><span>完成加分</span><input name="gain" type="number" min="0" max="100000" step="1" value="${habit?.gain || 0}" required /></label><label class="field"><span>未完成扣分</span><input name="loss" type="number" min="0" max="100000" step="1" value="${habit?.loss || 0}" required /></label><label class="field"><span>是否启用</span><select name="active"><option value="true" ${habit?.active !== false ? "selected" : ""}>启用</option><option value="false" ${habit?.active === false ? "selected" : ""}>停用</option></select></label><label class="field"><span>执行频率</span><select name="mode"><option value="daily">每天</option><option value="days" ${habit?.mode === 'days' ? 'selected' : ''}>指定星期</option><option value="weekly" ${habit?.mode === 'weekly' ? 'selected' : ''}>每周目标</option></select></label><fieldset class="habit-days"><legend>指定星期（选择“指定星期”时生效）</legend>${[1,2,3,4,5,6,0].map((d,i) => `<label><input type="checkbox" name="weekday-${d}" ${(habit?.days || [1,2,3,4,5]).includes(d) ? 'checked' : ''} />周${['一','二','三','四','五','六','日'][i]}</label>`).join('')}</fieldset><label class="field"><span>每周目标次数（选择“每周目标”时生效）</span><input name="target" type="number" min="1" max="7" value="${habit?.target || 3}" required /></label><p class="field-hint">北京时间、周一至周日。指定星期的休息日免打卡免扣分；每周目标在周结束后按缺少次数扣分，一天最多完成一次。</p><div class="form-actions">${habit ? `<button type="button" class="text-button danger-link" data-action="archive-habit" data-id="${escapeHtml(habit.id)}">停用习惯</button>` : `<span></span>`}<button class="button button-dark" type="submit">${habit ? "保存修改" : "创建习惯"}</button></div></form>`);
 }
 
 function showSettings() {
@@ -1019,6 +1020,9 @@ async function submitForm(formElement, intent = 'profile') {
       if (!item.name) throw new Error('请填写习惯名称。');
       item.active = form.get('active') !== 'false';
       item.gain = points.amount(form.get('gain') || 0); item.loss = points.amount(form.get('loss') || 0);
+      item.mode = form.get('mode') || 'daily'; item.target = Number(form.get('target') || 3);
+      item.days = [0,1,2,3,4,5,6].filter(d => form.has(`weekday-${d}`));
+      if (item.mode !== 'days' && !item.days.length) item.days = [1,2,3,4,5];
       await updatePoints(state => {
         const migrating = !state.habits.some(h => h.id === id);
         points.saveHabit(state, item);
@@ -1270,12 +1274,13 @@ function renderPoints() {
   const label = { gain: '加分', loss: '扣分', reward: '奖励', ledger: '流水' };
   let body = '';
   if (tab === 'ledger') {
-    body = `<div class="v4-list">${[...state.ledger].reverse().map(e => `<article class="v4-row"><div><strong>${escapeHtml(roleName(e.owner))} · ${escapeHtml(e.reason)}</strong><p>${escapeHtml(new Date(e.at).toLocaleString('zh-CN'))} · ${e.actor === 'system' ? '自动结算' : escapeHtml(roleName(e.actor)) + ' 操作'}</p>${e.requested !== e.amount ? `<small>原定 ${e.requested}，按余额实际执行</small>` : ''}</div><b class="v4-amount">${e.amount > 0 ? '+' : ''}${e.amount}</b></article>`).join('') || '<p class="field-hint">积分变动会记录在这里。</p>'}</div>`;
+    body = `<div class="v4-list">${[...state.ledger].reverse().map(e => `<article class="v4-row"><div><strong>${escapeHtml(roleName(e.owner))} · ${escapeHtml(e.reason)}</strong><p>${escapeHtml(new Date(e.at).toLocaleString('zh-CN'))} · ${e.actor === 'system' ? '自动结算' : escapeHtml(roleName(e.actor)) + ' 操作'}</p>${e.requested !== e.amount ? `<small>原定 ${e.requested}，按余额实际执行</small>` : ''}</div><div>${e.reversible && e.actor === ui.role && !state.ledger.some(r => r.source === `undo:${e.id}`) ? v4Button('undo-confirm', '撤销', e.id) : state.ledger.some(r => r.source === `undo:${e.id}`) ? '<small>已撤销</small>' : ''}<b class="v4-amount">${e.amount > 0 ? '+' : ''}${e.amount}</b></div></article>`).join('') || '<p class="field-hint">积分变动会记录在这里。</p>'}</div>`;
   } else {
     const rules = state.rules.filter(r => r.kind === tab);
     body = `<div class="feature-actions">${v4Button('rule', `新增${label[tab]}项`, '', `data-kind="${tab}"`)}</div>`;
     if (tab === 'reward') body += `<article class="v4-row"><div><strong>LoveDiary</strong><p>默认奖励 · 用积分解锁对方的日记，解锁后可反复阅读。</p></div><button class="button button-dark" data-action="navigate" data-view="diary">挑选日记</button></article>`;
     body += rules.map(r => `<article class="v4-row ${r.active ? '' : 'v4-inactive'}"><div><strong>${escapeHtml(r.name)} · ${tab === 'gain' ? '+' : '−'}${r.value}</strong><p>${escapeHtml(r.reason)}${r.active ? '' : ' · 已停用'}</p></div><div class="feature-actions">${r.active ? v4Button('confirm', tab === 'reward' ? '兑换' : label[tab], r.id) : ''}${v4Button('rule', '编辑', r.id)}</div></article>`).join('');
+    if (tab === 'reward') body += renderRewardTickets(state);
     if (tab !== 'reward') body += state.habits.filter(h => h[tab === 'gain' ? 'gain' : 'loss'] > 0).map(h => `<article class="v4-row"><div><strong>${escapeHtml(h.name)} · ${tab === 'gain' ? '+' + h.gain : '−' + h.loss}</strong><p>好习惯 · ${escapeHtml(roleName(h.owner))} · ${h.active ? '自动执行' : '已停用'} · ${tab === 'gain' ? '完成时加分' : '次日结算未完成扣分'}</p></div><button class="text-button" data-action="edit-habit" data-id="${escapeHtml(h.id)}">修改习惯</button></article>`).join('');
   }
   return `<div class="view-heading"><div><div class="eyebrow">LITTLE REWARDS</div><h1>积分</h1><p class="intro-copy">把用心记下来，也给彼此一点奖励。</p></div></div><div class="v4-balances">${['me', 'partner'].map(r => `<section class="panel"><span>${escapeHtml(roleName(r))}</span><strong>${points.balance(state, r)}<small> 积分</small></strong></section>`).join('')}</div><section class="panel feature-panel"><div class="v4-tabs">${Object.entries(label).map(([key, name]) => v4Button('tab', name, key, `aria-pressed="${tab === key}"`)).join('')}</div>${body}</section>`;
@@ -1291,6 +1296,13 @@ function renderDiary() {
 let pointConfirmation = null;
 async function actionV4({ action, id, kind }) {
   const state = pointState();
+  if (action === 'v4-week') { ui.habitWeek = id === 'last' ? -1 : 0; renderShell(); return; }
+  if (action === 'v4-undo-confirm' || action === 'v4-fulfill-confirm') {
+    const e = state.ledger.find(e => e.id === id);
+    if (!e) throw new Error('记录不存在。');
+    const undo = action === 'v4-undo-confirm';
+    v4Form(undo ? 'undo' : 'fulfill', undo ? '确认撤销这笔积分' : '确认奖励已兑现', `<p>${escapeHtml(e.reason)}</p><p>${escapeHtml(roleName(e.owner))} · ${undo ? `将反向调整 ${-e.amount} 积分，原记录保留。` : '请在实际完成奖励后确认，不会再次扣分。'}</p>`, id); return;
+  }
   if (action === 'v4-tab') { ui.pointsTab = id; renderShell(); return; }
   if (action === 'v4-rule') {
     const rule = state.rules.find(r => r.id === id);
@@ -1315,11 +1327,13 @@ async function actionV4({ action, id, kind }) {
     pointConfirmation = { id: makeId(), itemId: id, diary, snapshot: JSON.stringify(item), actor: ui.role };
     const value = diary ? item.price : item.value;
     const reward = diary || item.kind === 'reward';
-    v4Form('execute', diary ? '确认解锁日记' : '确认积分操作', `<p class="form-intro">${escapeHtml(diary ? item.title : item.name)} · ${!diary && item.kind === 'gain' ? '加' : '消耗 / 扣'} ${value} 积分</p><p>${escapeHtml(item.reason || '解锁后可反复阅读，不再收费。')}</p>${reward ? `<p>使用 ${escapeHtml(roleName(ui.role))} 的积分，当前余额 ${points.balance(state, ui.role)}</p>` : `<label class="field"><span>积分归属人</span><select name="owner">${['me','partner'].map(r => `<option value="${r}" ${r === ui.role ? 'selected' : ''}>${escapeHtml(roleName(r))}</option>`).join('')}</select></label>`}<p class="field-hint">请核对后确认，取消不会变动积分。</p>`, pointConfirmation.id);
+    v4Form('execute', diary ? '确认解锁日记' : '确认积分操作', `<p class="form-intro">${escapeHtml(diary ? item.title : item.name)} · ${!diary && item.kind === 'gain' ? '加' : '消耗 / 扣'} ${value} 积分</p><p>${escapeHtml(item.reason || '解锁后可反复阅读，不再收费。')}</p>${reward ? `<p>使用 ${escapeHtml(roleName(ui.role))} 的积分，当前余额 ${points.balance(state, ui.role)}</p>` : `<p>积分归属：${escapeHtml(roleName(counterpartRole()))}（对方）</p>`}<p class="field-hint">请核对后确认，取消不会变动积分。</p>`, pointConfirmation.id);
   }
 }
 async function submitV4(form, kind, id) {
-  if (kind === 'v4-rule') {
+  if (kind === 'v4-undo' || kind === 'v4-fulfill') {
+    await updatePoints(state => kind === 'v4-undo' ? points.undo(state, id, ui.role, makeId()) : points.fulfill(state, id, ui.role));
+  } else if (kind === 'v4-rule') {
     await updatePoints(state => {
       const rule = { id: id || makeId(), kind: form.get('kind'), name: form.get('name').trim(), reason: form.get('reason').trim(), value: points.amount(form.get('value')), active: form.get('active') === 'true' };
       if (!rule.name || !rule.reason) throw new Error('请填写名称和原因。');
@@ -1342,15 +1356,33 @@ async function submitV4(form, kind, id) {
       if (JSON.stringify(item) !== pending.snapshot) throw new Error('项目已变更，请重新确认。');
       if (pending.diary) points.redeem(state, item.id, ui.role, pending.id);
       else {
-        const owner = item.kind === 'reward' ? ui.role : form.get('owner');
-        if (!['me','partner'].includes(owner) || !item.active) throw new Error('项目或归属人无效。');
-        if (item.kind === 'reward' && points.balance(state, owner) < item.value) throw new Error('积分不足，暂时无法兑换。');
-        points.entry(state, { id: pending.id, owner, actor: ui.role, amount: item.kind === 'gain' ? item.value : -item.value, reason: `${item.name} · ${item.reason}`, source: `rule:${item.id}` });
+        const owner = item.kind === 'reward' ? ui.role : counterpartRole();
+        if (item.kind === 'reward') points.reward(state, item, owner, pending.id);
+        else points.manual(state, item, ui.role, owner, pending.id);
       }
     });
     pointConfirmation = null;
   }
   closeModal(); renderShell(); toastMessage('已保存');
+}
+
+
+function renderRewardTickets(state) {
+  return `<h3 class="reward-ticket-title">奖励券</h3>${[...state.ledger].reverse().filter(e => e.reward).map(e => `<article class="v4-row"><div><strong>${escapeHtml(e.reason)}</strong><p>${escapeHtml(roleName(e.owner))} 兑换 · ${e.fulfilledAt ? '已兑现 · ' + escapeHtml(new Date(e.fulfilledAt).toLocaleDateString('zh-CN')) : '待兑现'}</p></div>${!e.fulfilledAt && e.owner !== ui.role ? v4Button('fulfill-confirm', '确认兑现', e.id) : ''}</article>`).join('') || '<p>还没有兑换记录。</p>'}`;
+}
+function renderHabitBoard() {
+  const days = points.weekDays(points.today(), ui.habitWeek || 0), records = allCheckins(), today = points.today();
+  return `<section class="panel feature-panel habit-board"><div class="panel-head"><div><h2>每周习惯看板</h2><p class="field-hint">${days[0]} — ${days[6]} · ✓ 完成 / ○ 未完成 / — 休息或未启用 / · 待完成</p></div><div class="feature-actions">${v4Button('week','本周','this')}${v4Button('week','上周','last')}</div></div><div class="habit-board-scroll"><table><thead><tr><th>习惯 / 归属</th>${days.map((d,i) => `<th scope="col">周${['一','二','三','四','五','六','日'][i]}<small>${d.slice(5)}</small></th>`).join('')}<th>完成情况</th></tr></thead><tbody>${allHabits().map(h => {
+    const completed = days.filter(d => records.some(c => c.habitId === h.id && c.date === d && !c.deletedAt)).length;
+    const lastPolicy = h.policies ? points.policyAt(h, days[6]) : null;
+    const eligible = days.filter(d => h.policies ? d >= h.startDate && points.scheduled(points.policyAt(h,d), d) : h.active && d >= (h.createdAt || '').slice(0,10)).length;
+    const goal = lastPolicy?.mode === 'weekly' ? Math.min(lastPolicy.target, eligible) : eligible;
+    return `<tr><th scope="row">${escapeHtml(h.name)}<small>${escapeHtml(roleName(h.owner))}</small></th>${days.map(d => {
+      const done = records.some(c => c.habitId === h.id && c.date === d && !c.deletedAt);
+      const planned = h.policies ? d >= h.startDate && points.scheduled(points.policyAt(h,d),d) : h.active && d >= (h.createdAt || '').slice(0,10);
+      return `<td class="${done ? 'board-done' : ''}" title="${d} · ${done ? '已完成' : !planned ? '休息或未启用' : d >= today ? '待完成' : '未完成'}">${done ? '✓' : !planned ? '—' : d >= today ? '·' : '○'}</td>`;
+    }).join('')}<td>${completed} / ${goal}${lastPolicy?.mode === 'weekly' ? ' 次目标' : ' 天'}</td></tr>`;
+  }).join('') || '<tr><td colspan="9">添加一个习惯后，就能在这里查看每周记录。</td></tr>'}</tbody></table></div></section>`;
 }
 
 boot();
